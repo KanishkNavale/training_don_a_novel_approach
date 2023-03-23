@@ -1,0 +1,7 @@
+[run]
+omit = 
+    slog/don/__models.py,
+    *__init__.py, config*.py,
+    /tmp/*,
+    slog/keypoint_apps/pose_graph_generator.py,
+    slog/correspondence_app/direct_mapping_app.py

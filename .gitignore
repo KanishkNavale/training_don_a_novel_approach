@@ -1,0 +1,49 @@
+# IDE Specifics
+*__pycache__*
+*.vscode*
+*.pytest_cache*
+*.tox*
+*.coverage
+
+# Virtual Environments
+*sereact-venv*
+
+# Latex Exceptions
+*.aux
+*.glo
+*.idx
+*.log
+*.toc
+*.ist
+*.acn
+*.acr
+*.alg
+*.bbl
+*.blg
+*.dvi
+*.glg
+*.gls
+*.ilg
+*.ind
+*.lof
+*.lot
+*.maf
+*.mtc
+*.mtc1
+*.out
+*.synctex.gz
+*.fls
+*.fdb_latexmk
+*.pdfsync
+*.bcf
+*.xml
+*.lol
+
+
+# Ignoring sandboxing scripts
+#*sandbox/
+*tmp/
+*trained_models/
+
+# Docker stuff
+*.devcontainer
