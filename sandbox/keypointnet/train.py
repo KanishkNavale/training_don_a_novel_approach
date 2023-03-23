@@ -1,4 +1,4 @@
-from slog.keypoint_nets import KeypointNetworkTrainer
+from src.keypointnet import KeypointNetworkTrainer
 
 if __name__ == "__main__":
     trainer = KeypointNetworkTrainer(yaml_config_path="sandbox/keypointnet/keypointnet-config.yaml")

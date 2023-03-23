@@ -7,9 +7,9 @@ import cv2
 import torch
 import random
 
-from slog.don import DON
-from slog.inference import PCK
-from slog.geometry import invert_extrinsic_matrix
+from src.don import DON
+from src.inference import PCK
+from src.geometry import invert_extrinsic_matrix
 
 from tqdm import tqdm
 

@@ -4,11 +4,11 @@ import numpy as np
 import torch
 from sklearn.decomposition import PCA
 
-from slog.datatypes import VisionInputData
-from slog.utils import convert_tensor_to_cv2, convert_tensor_to_numpy
-from slog.don import DON
+from src.datatypes import VisionInputData
+from src.utils import convert_tensor_to_cv2, convert_tensor_to_numpy
+from src.don import DON
 
-from slog.keypoint_apps.pose_graph_generator import PoseGraphGenerator
+from src.keypoint_apps.pose_graph_generator import PoseGraphGenerator
 
 from torchvision.transforms import Compose, Resize, Normalize
 

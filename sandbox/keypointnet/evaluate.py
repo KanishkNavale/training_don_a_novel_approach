@@ -3,10 +3,10 @@ import torch
 from tqdm import tqdm
 import cv2
 
-from slog.keypoint_nets import KeypointNetwork, DataModuleKeypointNet
+from src.keypointnet import KeypointNetwork, DataModuleKeypointNet
 
-from slog.utils import convert_tensor_to_cv2, convert_tensor_to_numpy
-from slog.renderers import annotate_point_in_image
+from src.utils import convert_tensor_to_cv2, convert_tensor_to_numpy
+from src.renderers import annotate_point_in_image
 
 
 def compute_spatial_expectations(spatial_probs: torch.Tensor) -> torch.Tensor:

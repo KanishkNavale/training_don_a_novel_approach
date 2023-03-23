@@ -2,8 +2,8 @@ import cv2
 import numpy as np
 import torch
 
-from slog.utils import convert_tensor_to_cv2
-from slog.renderers import annotate_point_in_image
+from src.utils import convert_tensor_to_cv2
+from src.renderers import annotate_point_in_image
 
 import torchvision.transforms as T
 

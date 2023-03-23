@@ -1,6 +1,7 @@
 don:
     descriptor_dimension: 3
     backbone: "resnet_34"
+    n_correspondence: 100
 
 optimizer:
     name: Adam
@@ -14,6 +15,7 @@ loss:
     temperature: 0.1
 
 trainer:
+    model_checkpoint_name: dense_mf
     epochs: 500
     enable_logging: True
     tensorboard_path: sandbox/don/tensorboard
@@ -23,14 +25,13 @@ trainer:
     logging_frequency: 1
     validation_frequency: 1
 
-datamodule:
-    rgb_directory: dataset/multi_cap_dataset/rgbs
-    mask_directory: dataset/multi_cap_dataset/masks
+dataloader:
+    directory: dataset/dataset
+    depth_ratio: 1
 
     test_size: 0.1
-
     shuffle: True
 
     n_workers: 10
     batch_size: 1
-    n_correspondence: 100
+    

@@ -1,5 +1,5 @@
-from slog.geometry import invert_extrinsic_matrix
-from slog.inference import PCK
+from src.geometry import invert_extrinsic_matrix
+from src.inference import PCK
 from typing import List, Tuple
 
 import os
@@ -11,12 +11,12 @@ import torch
 from sklearn.decomposition import PCA
 import random
 
-from slog.datatypes import VisionInputData
-from slog.utils import convert_tensor_to_cv2, convert_tensor_to_numpy
+from src.datatypes import VisionInputData
+from src.utils import convert_tensor_to_cv2, convert_tensor_to_numpy
 
-from slog.keypoint_don import KeypointNetwork
+from src.keypoint_don import KeypointNetwork
 
-from slog.keypoint_apps import PoseGraphGenerator
+from src.keypoint_apps import PoseGraphGenerator
 
 device = torch.device("cuda")
 
