@@ -1,7 +1,4 @@
-from typing import List, Tuple
-
 import torch
-import numpy as np
 import torch.nn.functional as F
 import torchvision.transforms as T
 import pytorch_lightning as pl
@@ -90,6 +87,11 @@ class DON(pl.LightningModule):
         self.log("train_loss", loss)
 
         return loss
+
+    def training_step_end(self, step_output) -> None:
+        if self.optim_config.enable_schedular:
+            sch = self.lr_schedulers()
+            sch.step()
 
     def validation_step(self, batch, batch_idx):
 

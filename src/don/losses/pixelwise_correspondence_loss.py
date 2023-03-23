@@ -20,7 +20,7 @@ def _compute_correspondence_loss(grid: Tuple[torch.Tensor, torch.Tensor],
                                  image_b: torch.Tensor,
                                  matches_a: torch.Tensor,
                                  matches_b: torch.Tensor) -> torch.Tensor:
-    queried_descriptors_a = image_a[:, matches_a[:, 0].long(), matches_a[:, 1].long()].permute(1, 0)
+    queried_descriptors_a = image_a[:, matches_a[:, 0], matches_a[:, 1]].permute(1, 0)
     tiled_queried_desciptors_a = queried_descriptors_a.reshape((matches_a.shape[0], 1, 1, image_a.shape[0]))
     tiled_image_b = image_b.unsqueeze(0).tile(matches_a.shape[0], 1, 1, 1).permute(0, 2, 3, 1)
 
@@ -38,7 +38,8 @@ def _compute_correspondence_loss(grid: Tuple[torch.Tensor, torch.Tensor],
     spatial_expectations_v = torch.sum(torch.multiply(grid[1], spatial_probabilities), dim=(1, 2))
     spatial_expectation_uv = torch.hstack([spatial_expectations_u[:, None], spatial_expectations_v[:, None]])
 
-    return torch.nn.functional.huber_loss(spatial_expectation_uv, matches_b)
+    return torch.nn.functional.huber_loss(spatial_expectation_uv,
+                                          matches_b.type(spatial_expectation_uv.dtype))
 
 
 class PixelwiseCorrespondenceLoss:

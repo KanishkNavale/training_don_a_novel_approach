@@ -33,9 +33,6 @@ def _get_random_augmentation(image: torch.Tensor) -> torch.Tensor:
     elif 1 == np.random.randint(0, 3):
         return T.RandomPerspective(distortion_scale=0.2, p=1.0)(image)
 
-    elif 1 == np.random.randint(0, 3):
-        return T.RandomVerticalFlip(p=1.0)(image)
-
     else:
         return image
 
@@ -84,7 +81,7 @@ def compute_correspondence_and_augmented_images(
                                           steps=n_correspondences)
         trimming_indices = trimming_indices.type(torch.int64)
 
-        matches_a.append(mutual_match_a[trimming_indices])
-        matches_b.append(mutual_match_b[trimming_indices])
+        matches_a.append(mutual_match_a[trimming_indices].type(torch.int64))
+        matches_b.append(mutual_match_b[trimming_indices].type(torch.int64))
 
     return augmented_images_a, torch.stack(matches_a), augmented_images_b, torch.stack(matches_b)

@@ -1,13 +1,13 @@
 don:
     descriptor_dimension: 3
     backbone: "resnet_34"
-    n_correspondence: 100
+    n_correspondence: 50
 
 optimizer:
     name: Adam
-    learning_rate: 3e-5
+    learning_rate: 3e-4
     enable_schedular: False
-    schedular_step_size: 1e-1
+    schedular_step_size: 2000
 
 loss:
     name: pixelwise_correspondence_loss
@@ -18,10 +18,10 @@ trainer:
     model_checkpoint_name: dense_mf
     epochs: 500
     enable_logging: True
-    tensorboard_path: sandbox/don/tensorboard
-    training_directory: sandbox/don/training
+    tensorboard_path: /tmp
+    training_directory: /tmp
     enable_checkpointing: True
-    model_path: sandbox/don/trained_model
+    model_path: /tmp
     logging_frequency: 1
     validation_frequency: 1
 
