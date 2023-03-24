@@ -17,7 +17,7 @@ class DataLoaderConfig:
 
     @classmethod
     def from_dictionary(cls, dictionary: Dict[str, Any]) -> DataLoaderConfig:
-        return cls(**dictionary)
+        return cls(**dictionary.dataloader)
 
     def __post_init__(self):
         self.directory = os.path.abspath(self.directory)

@@ -12,4 +12,4 @@ class OptimizerConfig:
 
     @classmethod
     def from_dictionary(cls, dictionary: Dict[str, Any]) -> OptimizerConfig:
-        return cls(**dictionary)
+        return cls(**dictionary.optimizer)

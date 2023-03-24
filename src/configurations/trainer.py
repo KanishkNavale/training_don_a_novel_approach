@@ -23,4 +23,4 @@ class TrainerConfig:
 
     @classmethod
     def from_dictionary(cls, dictionary: Dict[str, Any]) -> TrainerConfig:
-        return cls(**dictionary)
+        return cls(**dictionary.trainer)

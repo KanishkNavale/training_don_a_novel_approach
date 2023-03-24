@@ -14,20 +14,15 @@ class Trainer:
 
         # Deconstruct Configs
         read_yaml = initialize_config_file(yaml_config_path)
-        trainer_config = TrainerConfig.from_dictionary(read_yaml["trainer"])
-        dataloader_config = DataLoaderConfig.from_dictionary(read_yaml["dataloader"])
-        optimizer_config = OptimizerConfig.from_dictionary(read_yaml["optimizer"])
+        trainer_config = TrainerConfig.from_dictionary(read_yaml)
+        dataloader_config = DataLoaderConfig.from_dictionary(read_yaml)
 
         # Initialize models
         if "don" in read_yaml.keys():
-            model_config = DONConfig.from_dictionary(read_yaml)
-            self.model = DON()
+            self.model = DON(yaml_config_path)
 
         elif "keypointnet" in read_yaml.keys():
-            model_config = KeypointNetConfig.from_dictionary(read_yaml)
-            self.model = KeypointNetwork()
-
-        self.model.config(model_config, optimizer_config)
+            self.model = KeypointNetwork(yaml_config_path)
 
         # Init. checkpoints here,
         model_checkpoints = ModelCheckpoint(monitor='val_loss',

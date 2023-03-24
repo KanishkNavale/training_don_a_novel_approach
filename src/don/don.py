@@ -1,24 +1,23 @@
 import torch
 import torch.nn.functional as F
-import torchvision.transforms as T
 import pytorch_lightning as pl
+import numpy as np
 
 from src.don.synthetizer import compute_correspondence_and_augmented_images as synthetize
 from src.configurations import DONConfig, OptimizerConfig
 from src.don.losses import PixelwiseCorrespondenceLoss, PixelwiseNTXentLoss
-from src.utils import init_backbone
+from src.utils import init_backbone, initialize_config_file
 
 
 class DON(pl.LightningModule):
 
-    def __init__(self) -> None:
+    def __init__(self, yaml_config_path: str) -> None:
         super(DON, self).__init__()
 
-    def config(self, don_fig: DONConfig, optim_config: OptimizerConfig) -> None:
-
         # Init. configuration
-        self.don_config = don_fig
-        self.optim_config = optim_config
+        config = initialize_config_file(yaml_config_path)
+        self.don_config = DONConfig.from_dictionary(config)
+        self.optim_config = OptimizerConfig.from_dictionary(config)
 
         self.backbone = init_backbone(self.don_config.don.backbone)
         self.backbone.fc = torch.nn.Conv2d(self.backbone.inplanes,
@@ -100,7 +99,22 @@ class DON(pl.LightningModule):
 
         return loss
 
-    @ torch.no_grad()
-    def compute_dense_local_descriptors(self, input: torch.Tensor) -> torch.Tensor:
-        with torch.no_grad():
-            return self._forward(input)
+    @torch.no_grad()
+    def compute_dense_local_descriptors(self, image: torch.Tensor) -> torch.Tensor:
+        return self._forward(image)
+
+    def compute_descriptors_from_numpy(self, numpy_image: np.ndarray) -> np.ndarray:
+        image_tensor = torch.as_tensor(numpy_image, device=self.device, dtype=self.dtype)
+
+        if self.device != torch.device("cpu"):
+            image_tensor = image_tensor.pin_memory(True)
+
+        descriptors = self.compute_dense_local_descriptors(image_tensor.permute(2, 0, 1).unsqueeze(dim=0))
+        return descriptors.reshape(numpy_image.shape).cpu().numpy()
+
+
+def load_trained_don_model(trained_model_path: str, yaml_config_path: str) -> DON:
+    model = DON(yaml_config_path)
+    trained_model = model.load_from_checkpoint(trained_model_path, yaml_config_path=yaml_config_path)
+
+    return trained_model

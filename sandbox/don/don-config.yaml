@@ -33,5 +33,5 @@ dataloader:
     shuffle: True
 
     n_workers: 10
-    batch_size: 1
+    batch_size: 4
     
