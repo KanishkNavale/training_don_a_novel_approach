@@ -38,4 +38,12 @@ dataloader:
 
     n_workers: 10
     batch_size: 2
+
+    random_hintergrund_probability: 0.4
+    noisy_hintergrund_probability: 0.4
+    masked_hintergrund_probability: 0.2
+
+    greyscale_probability: 0.1
+    colorjitter_probability: 0.8
+    gaussian_blur_probability: 0.1
     
