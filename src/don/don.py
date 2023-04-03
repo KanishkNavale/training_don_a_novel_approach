@@ -4,6 +4,7 @@ import pytorch_lightning as pl
 import numpy as np
 
 from src.don.synthetizer import compute_correspondence_and_augmented_images as synthetize
+from src.don.debug import debug_correspondences, debug_descriptors
 from src.configurations import DONConfig, OptimizerConfig
 from src.don.losses import PixelwiseCorrespondenceLoss, PixelwiseNTXentLoss
 from src.utils import init_backbone, initialize_config_file
@@ -18,11 +19,13 @@ class DON(pl.LightningModule):
         config = initialize_config_file(yaml_config_path)
         self.don_config = DONConfig.from_dictionary(config)
         self.optim_config = OptimizerConfig.from_dictionary(config)
+        self.debug = self.don_config.don.debug
+        self.debug_path = self.don_config.don.debug_path
 
         self.backbone = init_backbone(self.don_config.don.backbone)
         self.backbone.fc = torch.nn.Conv2d(self.backbone.inplanes,
                                            self.don_config.don.descriptor_dimension,
-                                           kernel_size=3)
+                                           kernel_size=1)
 
         # Init. loss function
         if self.don_config.loss.name == 'pixelwise_correspondence_loss':
@@ -37,15 +40,12 @@ class DON(pl.LightningModule):
         if self.optim_config.name == 'Adam':
             optimizer = torch.optim.Adam(self.parameters(),
                                          lr=self.optim_config.learning_rate,
-                                         weight_decay=1e-4)
+                                         weight_decay=self.optim_config.weight_decay)
 
-        else:
-            raise NotImplementedError(f"This optimizer: {self.optim_config.name} is not implemented")
-
-        if self.optim_config.enable_schedular:
+        if self.optim_config.enable_schedule:
             sch = torch.optim.lr_scheduler.StepLR(optimizer,
                                                   step_size=self.optim_config.schedular_step_size,
-                                                  gamma=0.9)
+                                                  gamma=self.optim_config.gamma)
             return {
                 "optimizer": optimizer,
                 "lr_scheduler": {
@@ -77,6 +77,17 @@ class DON(pl.LightningModule):
                                   dense_descriptors_b,
                                   matches_a,
                                   matches_b)
+        if self.debug:
+            debug_correspondences(image_a,
+                                  matches_a,
+                                  image_b,
+                                  matches_b,
+                                  self.debug_path)
+            debug_descriptors(image_a,
+                              dense_descriptors_a,
+                              image_b,
+                              dense_descriptors_b,
+                              self.debug_path)
 
         return loss
 

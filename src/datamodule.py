@@ -33,36 +33,14 @@ class Dataset(Dataset):
                        image: torch.Tensor,
                        mask: torch.Tensor) -> torch.Tensor:
 
-        output = image
-
-        # Random Background
-        if 1 == np.random.randint(0, 5):
+        # Masked image
+        if 0 == np.random.randint(0, 3):
             tiled_mask = mask.unsqueeze(dim=-1).tile(1, 1, 3)
             masked_image = image * tiled_mask
-
-            random_image = cv2.imread(random.choice(self.random_backgrounds)) / 255
-            random_image = torch.as_tensor(cv2.resize(random_image, (image.shape[1], image.shape[0])), dtype=image.dtype)
-
-            masked_random_image = torch.where(masked_image != torch.zeros(3, dtype=masked_image.dtype),
-                                              torch.zeros(3, dtype=masked_image.dtype),
-                                              random_image)
-
-            output = masked_image + masked_random_image
-
-            return output
-
-        # Gaussian Blur
-        elif 1 == np.random.randint(0, 5):
-            blurred_image: torch.Tensor = T.GaussianBlur(kernel_size=(5, 9), sigma=(0.1, 5))(image.permute(2, 0, 1))
-            return blurred_image.permute(1, 2, 0)
-
-        # Greyscale augmentation
-        elif 1 == np.random.randint(0, 5):
-            grayscale: torch.Tensor = T.Grayscale()(image.permute(2, 0, 1))
-            output = grayscale.tile(3, 1, 1).permute(1, 2, 0)
+            image = masked_image
 
         # Noisy background
-        elif 1 == np.random.randint(0, 3):
+        elif 0 == np.random.randint(0, 3):
             tiled_mask = mask.unsqueeze(dim=-1).tile(1, 1, 3)
             masked_image = image * tiled_mask
 
@@ -71,15 +49,39 @@ class Dataset(Dataset):
                                               torch.zeros(3, dtype=masked_image.dtype),
                                               random_image)
 
-            output = masked_random_image + masked_image
+            image = masked_random_image + masked_image
 
-        # Masked image
-        elif 1 == np.random.randint(0, 5):
+        # Random Background
+        else:
             tiled_mask = mask.unsqueeze(dim=-1).tile(1, 1, 3)
             masked_image = image * tiled_mask
-            output = masked_image
 
-        return output
+            random_image = cv2.imread(random.choice(self.random_backgrounds)) / 255
+            random_image = torch.as_tensor(cv2.resize(random_image,
+                                                      (image.shape[1], image.shape[0])),
+                                           dtype=image.dtype)
+
+            masked_random_image = torch.where(masked_image != torch.zeros(3, dtype=masked_image.dtype),
+                                              torch.zeros(3, dtype=masked_image.dtype),
+                                              random_image)
+
+            image = masked_image + masked_random_image
+
+        # Gaussian Blur
+        if 0 == np.random.randint(0, 3):
+            blurred_image: torch.Tensor = T.GaussianBlur(kernel_size=(5, 9), sigma=(0.1, 5))(image.permute(2, 0, 1))
+            image = blurred_image.permute(1, 2, 0)
+
+        # Greyscale augmentation
+        elif 0 == np.random.randint(0, 3):
+            grayscale: torch.Tensor = T.Grayscale()(image.permute(2, 0, 1))
+            image = grayscale.tile(3, 1, 1).permute(1, 2, 0)
+
+        else:
+            image = T.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4, hue=0.1)(image.permute(2, 0, 1))
+            image = image.permute(1, 2, 0)
+
+        return image
 
     @staticmethod
     def _add_mask(input: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
@@ -140,6 +142,7 @@ class DataModule(pl.LightningDataModule):
         # Default values
         self._log_hyperparams = self.config.n_workers
         self.prepare_data_per_node = True
+        self.allow_zero_length_dataloader_with_multiple_devices = False
 
     def prepare_data(self) -> None:
         # Reading RGBD data

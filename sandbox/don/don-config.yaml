@@ -1,13 +1,17 @@
 don:
     descriptor_dimension: 3
-    backbone: "resnet_34"
+    backbone: resnet_34
     n_correspondence: 50
+    debug: True
+    debug_path: ""
 
 optimizer:
     name: Adam
     learning_rate: 3e-4
-    enable_schedular: False
+    enable_schedule: False
     schedular_step_size: 2000
+    gamma: 0.9
+    weight_decay: 1e-4
 
 loss:
     name: pixelwise_correspondence_loss
@@ -33,5 +37,5 @@ dataloader:
     shuffle: True
 
     n_workers: 10
-    batch_size: 4
+    batch_size: 2
     

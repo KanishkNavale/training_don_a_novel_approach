@@ -27,11 +27,11 @@ def _destack_image_mask_spatialgrid(augmented_image: torch.Tensor) -> Tuple[torc
 
 
 def _get_random_augmentation(image: torch.Tensor) -> torch.Tensor:
-    if 1 == np.random.randint(0, 3):
-        return T.RandomAffine(degrees=60, translate=(0, 0.2))(image)
+    if 1 == np.random.randint(0, 2):
+        return T.RandomAffine(degrees=90, translate=(0, 0.3))(image)
 
-    elif 1 == np.random.randint(0, 3):
-        return T.RandomPerspective(distortion_scale=0.2, p=1.0)(image)
+    if 1 == np.random.randint(0, 2):
+        return T.RandomPerspective(distortion_scale=0.5, p=1.0)(image)
 
     else:
         return image
@@ -75,6 +75,18 @@ def compute_correspondence_and_augmented_images(
 
         mutual_match_a = valid_pixels_a[match_indices_a.long()]
         mutual_match_b = torch.vstack([ubs, vbs]).permute(1, 0)
+
+        # eliminate indices
+        """
+        purge_indices_a = torch.where(mutual_match_a[:, 0] > mask_a.shape[0])[0]
+        purge_indices_b = torch.where(mutual_match_b[:, 0] > mask_a.shape[0])[0]
+        purge_indices_c = torch.where(mutual_match_a[:, 1] > mask_a.shape[1])[0]
+        purge_indices_d = torch.where(mutual_match_b[:, 1] > mask_a.shape[1])[0]
+        purge_indices = torch.unique(torch.cat([purge_indices_a,
+                                                purge_indices_b,
+                                                purge_indices_c,
+                                                purge_indices_d]))
+        """
 
         trimming_indices = torch.linspace(0,
                                           mutual_match_a.shape[0] - 1,

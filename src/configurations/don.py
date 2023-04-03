@@ -9,6 +9,8 @@ class DON:
     descriptor_dimension: int
     backbone: str
     n_correspondence: int
+    debug: bool = False
+    debug_path: str = 'tmp'
 
     @classmethod
     def from_dictionary(cls, dictionary: Dict[str, Any]) -> DON:
@@ -16,7 +18,7 @@ class DON:
 
     def __post_init__(self):
         if self.backbone not in ["resnet_18", "resnet_34", "resnet_50"]:
-            raise NotImplementedError(f"The specified backbone function: {self.backbone} is not implemented")
+            raise NotImplementedError(f"The specified backbone: {self.backbone} is not implemented")
 
 
 @dataclass
