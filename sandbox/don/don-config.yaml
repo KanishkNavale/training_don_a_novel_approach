@@ -1,14 +1,14 @@
 don:
     descriptor_dimension: 3
     backbone: resnet_34
-    n_correspondence: 50
-    debug: True
+    n_correspondence: 70
+    debug: False
     debug_path: ""
 
 optimizer:
     name: Adam
     learning_rate: 3e-4
-    enable_schedule: False
+    enable_schedule: True
     schedular_step_size: 2000
     gamma: 0.9
     weight_decay: 1e-4
@@ -19,7 +19,7 @@ loss:
     temperature: 0.1
 
 trainer:
-    model_checkpoint_name: dense_mf
+    model_checkpoint_name: trained_don
     epochs: 500
     enable_logging: True
     tensorboard_path: /tmp

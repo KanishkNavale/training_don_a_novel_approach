@@ -1,7 +1,8 @@
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import ModelCheckpoint, RichProgressBar, LearningRateMonitor
+from pytorch_lightning.loggers import TensorBoardLogger
 
-from src.configurations import TrainerConfig, DataLoaderConfig, OptimizerConfig, DONConfig, KeypointNetConfig
+from src.configurations import TrainerConfig, DataLoaderConfig
 from src.datamodule import DataModule
 from src.don import DON
 from src.keypointnet import KeypointNetwork
@@ -17,12 +18,19 @@ class Trainer:
         trainer_config = TrainerConfig.from_dictionary(read_yaml)
         dataloader_config = DataLoaderConfig.from_dictionary(read_yaml)
 
+        # Init. logger
+        logger = TensorBoardLogger(save_dir=trainer_config.tensorboard_path,
+                                   default_hp_metric=False) if trainer_config.enable_logging else None
+
         # Initialize models
         if "don" in read_yaml.keys():
             self.model = DON(yaml_config_path)
 
         elif "keypointnet" in read_yaml.keys():
             self.model = KeypointNetwork(yaml_config_path)
+
+        else:
+            raise NotImplementedError("Model not implemented")
 
         # Init. checkpoints here,
         model_checkpoints = ModelCheckpoint(monitor='val_loss',
@@ -41,7 +49,7 @@ class Trainer:
         self.datamodule.prepare_data()
         self.datamodule.setup()
 
-        self.trainer = pl.Trainer(logger=trainer_config.enable_logging,
+        self.trainer = pl.Trainer(logger=logger,
                                   enable_checkpointing=trainer_config.enable_checkpointing,
                                   check_val_every_n_epoch=trainer_config.validation_frequency,
                                   max_epochs=trainer_config.epochs,

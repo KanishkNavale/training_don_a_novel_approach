@@ -45,13 +45,12 @@ class DON(pl.LightningModule):
         if self.optim_config.enable_schedule:
             sch = torch.optim.lr_scheduler.StepLR(optimizer,
                                                   step_size=self.optim_config.schedular_step_size,
-                                                  gamma=self.optim_config.gamma)
+                                                  gamma=self.optim_config.gamma,
+                                                  verbose=False)
             return {
                 "optimizer": optimizer,
                 "lr_scheduler": {
-                    "scheduler": sch,
-                    "monitor": "train_loss",
-
+                    "scheduler": sch
                 }
             }
         else:
@@ -66,9 +65,10 @@ class DON(pl.LightningModule):
         return scaled_map
 
     def _step(self, batch) -> torch.Tensor:
-        image, mask = batch["RGBs-A"], batch["Masks-A"]
+        image, mask, backgrounds = batch["RGBs-A"], batch["Masks-A"], batch["Random-Backgrounds"]
         image_a, matches_a, image_b, matches_b = synthetize(image,
                                                             mask,
+                                                            backgrounds,
                                                             self.don_config.don.n_correspondence)
         dense_descriptors_a = self._forward(image_a)
         dense_descriptors_b = self._forward(image_b)
@@ -77,7 +77,9 @@ class DON(pl.LightningModule):
                                   dense_descriptors_b,
                                   matches_a,
                                   matches_b)
-        if self.debug:
+
+        # Override to save the last debug for the last epoch
+        if self.debug or self.trainer.current_epoch == self.trainer.max_epochs - 1:
             debug_correspondences(image_a,
                                   matches_a,
                                   image_b,
@@ -96,12 +98,11 @@ class DON(pl.LightningModule):
         loss = self._step(batch)
         self.log("train_loss", loss)
 
-        return loss
-
-    def training_step_end(self, step_output) -> None:
-        if self.optim_config.enable_schedular:
+        if self.optim_config.enable_schedule:
             sch = self.lr_schedulers()
             sch.step()
+
+        return loss
 
     def validation_step(self, batch, batch_idx):
 

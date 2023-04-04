@@ -18,6 +18,22 @@ def _stack_image_with_mask_and_grid(images: torch.Tensor, masks: torch.Tensor) -
     return torch.cat([images, masks, tiled_spatial_grid], dim=1)
 
 
+def _background_image_augment(images: torch.Tensor,
+                              backgrounds: torch.Tensor,
+                              masks: torch.Tensor) -> torch.Tensor:
+
+    # shuffle backgrounds
+    shuffle_indices = torch.randperm(backgrounds.shape[0], device=backgrounds.device)
+    backgrounds = backgrounds[shuffle_indices]
+
+    masked_images = images * masks.unsqueeze(dim=1).tile(1, 3, 1, 1)
+
+    inverted_mask = torch.where(masks == 0.0, torch.ones_like(masks), torch.zeros_like(masks))
+    masked_backgrounds = backgrounds * inverted_mask.unsqueeze(dim=1).tile(1, 3, 1, 1)
+
+    return masked_images + masked_backgrounds
+
+
 def _destack_image_mask_spatialgrid(augmented_image: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     image = augmented_image[:, :3, :, :]
     mask = augmented_image[:, 3, :, :]
@@ -27,10 +43,10 @@ def _destack_image_mask_spatialgrid(augmented_image: torch.Tensor) -> Tuple[torc
 
 
 def _get_random_augmentation(image: torch.Tensor) -> torch.Tensor:
-    if 1 == np.random.randint(0, 2):
+    if 0 == np.random.randint(0, 2):
         return T.RandomAffine(degrees=90, translate=(0, 0.3))(image)
 
-    if 1 == np.random.randint(0, 2):
+    if 0 == np.random.randint(0, 2):
         return T.RandomPerspective(distortion_scale=0.5, p=1.0)(image)
 
     else:
@@ -40,10 +56,13 @@ def _get_random_augmentation(image: torch.Tensor) -> torch.Tensor:
 def compute_correspondence_and_augmented_images(
         images: torch.Tensor,
         masks: torch.Tensor,
+        backgrounds: torch.Tensor,
         n_correspondences: int) -> torch.Tensor:
 
+    augmented_images = _background_image_augment(images, backgrounds, masks)
+
     augmented_image_a = _get_random_augmentation(_stack_image_with_mask_and_grid(images, masks))
-    augmented_image_b = _get_random_augmentation(_stack_image_with_mask_and_grid(images, masks))
+    augmented_image_b = _get_random_augmentation(_stack_image_with_mask_and_grid(augmented_images, masks))
 
     augmented_images_a, masks_a, grids_a = _destack_image_mask_spatialgrid(augmented_image_a)
     augmented_images_b, _, grids_b = _destack_image_mask_spatialgrid(augmented_image_b)
@@ -75,18 +94,6 @@ def compute_correspondence_and_augmented_images(
 
         mutual_match_a = valid_pixels_a[match_indices_a.long()]
         mutual_match_b = torch.vstack([ubs, vbs]).permute(1, 0)
-
-        # eliminate indices
-        """
-        purge_indices_a = torch.where(mutual_match_a[:, 0] > mask_a.shape[0])[0]
-        purge_indices_b = torch.where(mutual_match_b[:, 0] > mask_a.shape[0])[0]
-        purge_indices_c = torch.where(mutual_match_a[:, 1] > mask_a.shape[1])[0]
-        purge_indices_d = torch.where(mutual_match_b[:, 1] > mask_a.shape[1])[0]
-        purge_indices = torch.unique(torch.cat([purge_indices_a,
-                                                purge_indices_b,
-                                                purge_indices_c,
-                                                purge_indices_d]))
-        """
 
         trimming_indices = torch.linspace(0,
                                           mutual_match_a.shape[0] - 1,

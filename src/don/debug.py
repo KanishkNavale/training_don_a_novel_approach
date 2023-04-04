@@ -12,7 +12,7 @@ def _channel_first_tensor_to_channel_last_numpy(tensor: torch.Tensor) -> np.ndar
 
 
 def _convert_numpy_image_to_cv2_image(numpy_image: np.ndarray) -> np.ndarray:
-    return cv2.normalize(numpy_image, None, 0, 255, cv2.NORM_MINMAX, cv2.CV_8U)
+    return cv2.normalize(numpy_image.astype(np.float32), None, 0, 255, cv2.NORM_MINMAX, cv2.CV_8U)
 
 
 def debug_correspondences(images_a: torch.Tensor,
