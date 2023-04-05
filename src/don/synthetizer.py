@@ -1,4 +1,4 @@
-from typing import List, Tuple
+from typing import List, Tuple, Union
 
 import torch
 import numpy as np
@@ -53,13 +53,16 @@ def _get_random_augmentation(image: torch.Tensor) -> torch.Tensor:
         return image
 
 
-def compute_correspondence_and_augmented_images(
+def augment_images_and_compute_correspondences(
         images: torch.Tensor,
         masks: torch.Tensor,
-        backgrounds: torch.Tensor,
-        n_correspondences: int) -> torch.Tensor:
+        backgrounds: Union[torch.Tensor, None],
+        n_correspondences: int = 100) -> torch.Tensor:
 
-    augmented_images = _background_image_augment(images, backgrounds, masks)
+    if backgrounds is not None:
+        augmented_images = _background_image_augment(images, backgrounds, masks)
+    else:
+        augmented_images = images
 
     augmented_image_a = _get_random_augmentation(_stack_image_with_mask_and_grid(images, masks))
     augmented_image_b = _get_random_augmentation(_stack_image_with_mask_and_grid(augmented_images, masks))

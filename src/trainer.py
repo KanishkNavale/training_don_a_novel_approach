@@ -1,3 +1,4 @@
+import torch
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import ModelCheckpoint, RichProgressBar, LearningRateMonitor
 from pytorch_lightning.loggers import TensorBoardLogger
@@ -31,6 +32,9 @@ class Trainer:
 
         else:
             raise NotImplementedError("Model not implemented")
+
+        # Model Settings
+        torch.set_float32_matmul_precision(trainer_config.precision)
 
         # Init. checkpoints here,
         model_checkpoints = ModelCheckpoint(monitor='val_loss',

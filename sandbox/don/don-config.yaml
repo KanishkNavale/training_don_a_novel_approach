@@ -1,7 +1,7 @@
 don:
     descriptor_dimension: 3
     backbone: resnet_34
-    n_correspondence: 70
+    n_correspondence: 126
     debug: False
     debug_path: ""
 
@@ -14,11 +14,12 @@ optimizer:
     weight_decay: 1e-4
 
 loss:
-    name: pixelwise_correspondence_loss
+    name: pixelwise_ntxent_loss
     reduction: mean
     temperature: 0.1
 
 trainer:
+    precision: high 
     model_checkpoint_name: trained_don
     epochs: 500
     enable_logging: True
@@ -37,7 +38,7 @@ dataloader:
     shuffle: True
 
     n_workers: 10
-    batch_size: 2
+    batch_size: 1
 
     random_hintergrund_probability: 0.4
     noisy_hintergrund_probability: 0.4
