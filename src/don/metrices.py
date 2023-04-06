@@ -1,4 +1,4 @@
-from typing import List, Tuple, Union
+from typing import List, Tuple, Union, Dict
 
 from tqdm import tqdm
 import numpy as np
@@ -47,46 +47,53 @@ def PCK(descriptor_image_a: torch.Tensor,
 
 def AUC_for_PCK(trained_model: DON,
                 datamodule: DataModule,
-                iternations: int,
-                n_correspondence: int,
+                iterations: int,
+                n_correspondences: int,
                 device: Union[torch.device, None] = None) -> Tuple[List[np.ndarray], List[np.ndarray]]:
 
     # Init. Datamodule
     datamodule.prepare_data()
-    datamodule.setup()
-    dataset = datamodule.val_dataloader().dataset
+    datamodule.setup(stage="fit")
+    dataset = datamodule.val_dataloader(batch_size=1)
 
     # Init. device
     if device is not torch.device("cpu"):
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
+    # Move the model to device
+    trained_model = trained_model.to(device)
+
     PCK_PROFILES: List[torch.Tensor] = []
 
-    for i in tqdm(range(iternations), desc="Benchmarking Metric: AUC of PCK@k", total=iternations):
+    for i in tqdm(range(iterations), desc="Benchmarking Metric: AUC of PCK@k", total=iterations):
 
         PROFILE = torch.zeros(100, dtype=torch.float32)
 
-        for k in tqdm(range(1, 101), desc=f"Iteration {i + 1}/{iternations}", total=100):
+        for k in tqdm(range(1, 101), desc=f"Iteration {i + 1}/{iterations}", total=100):
 
             # Sample a random pair of images
-            batch = dataset[np.random.randint(0, len(dataset))]
+            batch: Dict[str, torch.Tensor] = next(iter(dataset))
             image, mask, backgrounds = batch["RGBs-A"], batch["Masks-A"], batch["Random-Backgrounds"]
+
+            image = image.to(device=device, non_blocking=True)
+            mask = mask.to(device=device, non_blocking=True)
+            backgrounds = backgrounds.to(device=device, non_blocking=True)
 
             # Synthetize a pair of images
             image_a, matches_a, image_b, matches_b = synthetize(image,
                                                                 mask,
                                                                 backgrounds,
-                                                                n_correspondence)
+                                                                n_correspondences)
 
             # Compute descriptors
-            descriptor_a = trained_model.compute_dense_local_descriptors(image_a).squeeze(0)
-            descriptor_b = trained_model.compute_dense_local_descriptors(image_b).squeeze(0)
+            descriptor_a = trained_model.compute_dense_local_descriptors(image_a)
+            descriptor_b = trained_model.compute_dense_local_descriptors(image_b)
 
             # Compute PCK
-            pck = PCK(descriptor_a,
-                      descriptor_b,
-                      matches_a,
-                      matches_b,
+            pck = PCK(descriptor_a.squeeze(0),
+                      descriptor_b.squeeze(0),
+                      matches_a.squeeze(0),
+                      matches_b.squeeze(0),
                       k / 100.0)
 
             PROFILE[k - 1] = pck

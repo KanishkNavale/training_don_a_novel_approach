@@ -63,7 +63,8 @@ class Trainer:
                                   enable_model_summary=True,
                                   detect_anomaly=True,
                                   accelerator='auto',
-                                  devices='auto')
+                                  devices='auto',
+                                  inference_mode=False)
 
     def fit(self) -> None:
         self.trainer.fit(self.model, datamodule=self.datamodule)

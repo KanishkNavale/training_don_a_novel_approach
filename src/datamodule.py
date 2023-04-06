@@ -174,8 +174,8 @@ class DataModule(pl.LightningDataModule):
                           batch_size=self.config.batch_size,
                           pin_memory=True)
 
-    def val_dataloader(self):
+    def val_dataloader(self, batch_size: int = None):
         return DataLoader(self.validation_dataset,
                           num_workers=self.config.n_workers,
-                          batch_size=self.config.batch_size,
+                          batch_size=self.config.batch_size if batch_size is None else batch_size,
                           pin_memory=True)

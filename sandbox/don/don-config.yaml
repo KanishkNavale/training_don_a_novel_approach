@@ -1,7 +1,7 @@
 don:
     descriptor_dimension: 3
     backbone: resnet_34
-    n_correspondence: 126
+    n_correspondence: 125
     debug: False
     debug_path: ""
 
