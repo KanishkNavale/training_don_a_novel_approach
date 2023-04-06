@@ -35,7 +35,7 @@ def plot_metric(pcks: List[np.ndarray], aucs: List[np.ndarray]) -> None:
                      color="r")
 
     plt.grid(True)
-    plt.xlabel("K")
+    plt.xlabel("k")
     plt.ylabel("PCK")
     plt.title(f"AUC for PCK@k, ∀k ∈ [1, 100] = {auc_mean:.4f}±{auc_std:.4f}")
     plt.legend(loc='best')
@@ -56,7 +56,7 @@ if __name__ == "__main__":
 
     PCKS, AUCS = AUC_for_PCK(trained_model,
                              dataloader,
-                             iterations=2,
+                             iterations=10,
                              n_correspondences=150)
 
     plot_metric(PCKS, AUCS)

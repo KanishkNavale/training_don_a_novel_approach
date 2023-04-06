@@ -10,6 +10,7 @@ class KeypointNet:
     n_keypoints: int
     bottleneck_dimension: int
     backbone: str
+    n_correspondences: int
 
     @classmethod
     def from_dictionary(cls, dictionary: Dict[str, Any]) -> KeypointNet:
