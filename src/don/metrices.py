@@ -1,4 +1,5 @@
 from typing import List, Tuple, Union, Dict
+import gc
 
 from tqdm import tqdm
 import numpy as np
@@ -10,39 +11,54 @@ from src.don import DON
 from src.datamodule import DataModule
 
 
+@torch.jit.script
+def argmin_2d(tensor: torch.Tensor) -> torch.Tensor:
+    """
+    Compute the 2D spatial argmin of a tensor along the last two dimensions.
+
+    Args:
+        tensor: A PyTorch tensor with shape (batch_size, height, width).
+
+    Returns:
+        A tensor with shape (batch_size, 2), where the last dimension contains
+        the x and y coordinates of the argmin for each batch item in the input.
+    """
+    # Flatten the tensor along the spatial dimensions
+    flattened_tensor = tensor.view(tensor.size(0), -1)
+
+    # Compute the argmin along the flattened dimensions
+    argmin = torch.argmin(flattened_tensor, dim=-1)
+
+    # Convert the argmin indices to coordinates
+    x = argmin % tensor.size(-1)
+    y = argmin // tensor.size(-1)
+
+    # Stack the x and y coordinates to form the output tensor
+    output = torch.stack((x, y), dim=-1)
+
+    return output
+
+
 def PCK(descriptor_image_a: torch.Tensor,
         descriptor_image_b: torch.Tensor,
         matches_a: torch.Tensor,
         matches_b: torch.Tensor,
         k: float) -> float:
 
-    us = torch.arange(0, descriptor_image_a.shape[-2], 1, dtype=torch.float32, device=descriptor_image_a.device)
-    vs = torch.arange(0, descriptor_image_a.shape[-1], 1, dtype=torch.float32, device=descriptor_image_a.device)
-    grid = torch.meshgrid(us, vs, indexing='ij')
-
     queried_descriptors_a = descriptor_image_a[:, matches_a[:, 0], matches_a[:, 1]].permute(1, 0)
     tiled_queried_desciptors_a = queried_descriptors_a.reshape((matches_a.shape[0], 1, 1, descriptor_image_a.shape[0]))
     tiled_image_b = descriptor_image_b.unsqueeze(0).permute(0, 2, 3, 1)
 
     spatial_distances_of_descriptors_a_in_image_b = l2(tiled_image_b, tiled_queried_desciptors_a, dim=-1)
-    kernel_distances = torch.exp(-1.0 * torch.square(spatial_distances_of_descriptors_a_in_image_b)) + 1e-16
-    spatial_probabilities = kernel_distances / torch.sum(kernel_distances, dim=(1, 2), keepdim=True)
 
-    if not torch.allclose(torch.sum(spatial_probabilities, dim=(1, 2)),
-                          torch.ones(matches_a.shape[0],
-                                     dtype=spatial_probabilities.dtype,
-                                     device=spatial_probabilities.device)):
-        raise ValueError("Spatial probabilities do not add up to 1.0")
+    indices = argmin_2d(spatial_distances_of_descriptors_a_in_image_b)
 
-    spatial_expectations_u = torch.sum(torch.multiply(grid[0], spatial_probabilities), dim=(1, 2))
-    spatial_expectations_v = torch.sum(torch.multiply(grid[1], spatial_probabilities), dim=(1, 2))
-    spatial_expectation_uv = torch.hstack([spatial_expectations_u[:, None], spatial_expectations_v[:, None]])
+    similarities = cosine_similarity(indices.type(descriptor_image_a.dtype),
+                                     matches_b.type(descriptor_image_a.dtype))
 
-    similarities = cosine_similarity(spatial_expectation_uv, matches_b.type(spatial_expectation_uv.dtype))
+    iversion = (similarities >= k).type(torch.float32)
 
-    inversion = (similarities >= k).type(torch.float32)
-
-    return inversion.mean().cpu()
+    return iversion.mean().cpu()
 
 
 def AUC_for_PCK(trained_model: DON,
@@ -65,19 +81,23 @@ def AUC_for_PCK(trained_model: DON,
 
     PCK_PROFILES: List[torch.Tensor] = []
 
-    for i in tqdm(range(iterations), desc="Benchmarking Metric: AUC of PCK@k", total=iterations):
+    for i in tqdm(range(iterations),
+                  desc="Benchmarking Metric: AUC of PCK@K~[1, 100]",
+                  total=iterations):
 
         PROFILE = torch.zeros(100, dtype=torch.float32)
 
-        for k in tqdm(range(1, 101), desc=f"Iteration {i + 1}/{iterations}", total=100):
+        for k in tqdm(range(1, 101),
+                      desc=f"Iteration {i + 1}/{iterations}",
+                      total=100):
 
             # Sample a random pair of images
-            batch: Dict[str, torch.Tensor] = next(iter(dataset))
+            batch: Dict[str, torch.Tensor] = dataset.dataset.__getitem__(np.random.randint(0, len(dataset.dataset) - 1))
             image, mask, backgrounds = batch["RGBs-A"], batch["Masks-A"], batch["Random-Backgrounds"]
 
-            image = image.to(device=device, non_blocking=True)
-            mask = mask.to(device=device, non_blocking=True)
-            backgrounds = backgrounds.to(device=device, non_blocking=True)
+            image = image.to(device=device, non_blocking=True).unsqueeze(dim=0)
+            mask = mask.to(device=device, non_blocking=True).unsqueeze(dim=0)
+            backgrounds = backgrounds.to(device=device, non_blocking=True).unsqueeze(dim=0)
 
             # Synthetize a pair of images
             image_a, matches_a, image_b, matches_b = synthetize(image,
@@ -97,6 +117,19 @@ def AUC_for_PCK(trained_model: DON,
                       k / 100.0)
 
             PROFILE[k - 1] = pck
+
+            # Stop some memry leaks
+            del (batch,
+                 image,
+                 mask,
+                 backgrounds,
+                 image_a,
+                 matches_a,
+                 image_b,
+                 matches_b,
+                 descriptor_a,
+                 descriptor_b)
+            gc.collect()
 
         PCK_PROFILES.append(PROFILE)
 

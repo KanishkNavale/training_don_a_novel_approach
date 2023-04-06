@@ -12,15 +12,19 @@ from src.renderers import render_spatial_distribution
 pygame.init()
 
 
-class PoseGraphGenerator:
+class DescritporInspectorApp:
     def __init__(self,
-                 rgb_a: torch.Tensor,
-                 descriptor_a: torch.Tensor,
-                 rgb_b: torch.Tensor,
-                 descriptor_b: torch.Tensor) -> None:
+                 rgb_a: np.ndarray,
+                 descriptor_a: np.ndarray,
+                 rgb_b: np.ndarray,
+                 descriptor_b: np.ndarray) -> None:
 
-        self.rgb = torch.hstack([rgb_a, rgb_b])
-        self.descriptors = torch.hstack([descriptor_a, descriptor_b])
+        rgb = np.hstack([rgb_a, rgb_b])
+        descriptors = np.hstack([descriptor_a, descriptor_b])
+
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.rgb = torch.as_tensor(rgb, device=device, dtype=torch.float32)
+        self.descriptors = torch.as_tensor(descriptors, device=device, dtype=torch.float32)
 
         self.temp = torch.as_tensor(2.0, device=self.descriptors.device, dtype=self.descriptors.dtype)
         self.confidence = torch.as_tensor(0.1, device=self.descriptors.device, dtype=self.descriptors.dtype)
@@ -105,6 +109,17 @@ class PoseGraphGenerator:
         self.cpu_conf = np.clip(self.cpu_conf, 0.0, 1.0)
         self.confidence = torch.clamp(self.confidence, 0.0, 1.0)
 
+    def _annotate_texts(self, image: np.ndarray) -> np.ndarray:
+        font = cv2.FONT_HERSHEY_SIMPLEX
+
+        temp = 'Temperature:' + str(np.around(self.cpu_temp, 4))
+        image = cv2.putText(image, temp, (0, 15), font, 0.5, (0, 255, 0), 1, cv2.LINE_AA)
+
+        confidence = 'Confidence:' + str(np.around(self.cpu_conf, 2))
+        image = cv2.putText(image, confidence, (0, 30), font, 0.5, (0, 255, 0), 1, cv2.LINE_AA)
+
+        return image
+
     def run(self) -> None:
         running = True
         image = None
@@ -118,6 +133,7 @@ class PoseGraphGenerator:
 
                 if self.enable_spatial_expectation:
                     image = self._compute_spatial_expectation()
+                    image = self._annotate_texts(image)
                 if image is None or not self.enable_spatial_expectation:
                     image = self.cpu_image
 
