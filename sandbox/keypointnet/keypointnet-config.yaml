@@ -1,45 +1,53 @@
 keypointnet:
     n_keypoints: 10
-    bottleneck_dimension: 128
+    bottleneck_dimension: 256
     backbone: "resnet_34"
-
-
-optimizer:
-    name: Adam
-    learning_rate: 1e-4
-    enable_schedular: False
-    schedular_step_size: 1e-1
+    debug: True
+    debug_path: ""
 
 loss:
     multiview_consistency: 1.0
-    relative_pose: 0.2
+    relative_pose: 1.0
     separation: 1.0
     silhouette: 1.0
 
     reduction: "mean"
     margin: 2
 
+optimizer:
+    name: Adam
+    learning_rate: 3e-3
+    enable_schedule: True
+    schedular_step_size: 2000
+    gamma: 0.9
+    weight_decay: None
 
 trainer:
-    epochs: 1000
+    precision: high 
+    model_checkpoint_name: trained_keynet
+    epochs: 500
     enable_logging: True
     tensorboard_path: /tmp
     training_directory: /tmp
     enable_checkpointing: True
     model_path: /tmp
     logging_frequency: 1
-    validation_frequency: 5
+    validation_frequency: 1
 
-datamodule:
+dataloader:
     directory: dataset/dataset
+    depth_ratio: 1
 
-    depth_ratio: 1.0
     test_size: 0.1
-
     shuffle: True
-    random_illumination: False
-    background_randomization: True
-    masked_training: False
 
     n_workers: 10
     batch_size: 2
+
+    random_hintergrund_probability: 0.4
+    noisy_hintergrund_probability: 0.4
+    masked_hintergrund_probability: 0.2
+
+    greyscale_probability: 0.1
+    colorjitter_probability: 0.8
+    gaussian_blur_probability: 0.1

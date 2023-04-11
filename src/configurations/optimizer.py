@@ -10,7 +10,7 @@ class OptimizerConfig:
     enable_schedule: bool
     schedular_step_size: float
     gamma: float
-    weight_decay: Union[float, None] = None
+    weight_decay: Union[float, None, str] = None
 
     @classmethod
     def from_dictionary(cls, dictionary: Dict[str, Any]) -> OptimizerConfig:
@@ -27,8 +27,7 @@ class OptimizerConfig:
             if self.gamma <= 0 or self.gamma is None:
                 raise ValueError(f"The gamma: {self.gamma} must be greater than 0")
 
-        if self.weight_decay < 0:
-            raise ValueError(f"The weight decay: {self.weight_decay} must be greater than or equal to 0")
-
-        if self.weight_decay is None:
+        if self.weight_decay == 'None' or self.weight_decay == 0:
             self.weight_decay = 0
+        else:
+            raise ValueError(f"The weight decay: {self.weight_decay} must be greater than or equal to 0")

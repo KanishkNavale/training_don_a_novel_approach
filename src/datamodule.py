@@ -67,7 +67,6 @@ class Dataset(Dataset):
         # Random Background
         else:
             random_hintergrund_image = background * inverted_mask
-
             image = masked_image + random_hintergrund_image
 
         # Gaussian Blur
@@ -75,14 +74,14 @@ class Dataset(Dataset):
             blurred_image: torch.Tensor = T.GaussianBlur(kernel_size=(5, 9), sigma=(0.1, 5))(image.permute(2, 0, 1))
             image = blurred_image.permute(1, 2, 0)
 
-        # Greyscale augmentation
+        # Color augmentation
         elif 0 == np.random.randint(0, self.colorjitter_prob):
-            grayscale: torch.Tensor = T.Grayscale()(image.permute(2, 0, 1))
-            image = grayscale.tile(3, 1, 1).permute(1, 2, 0)
-
-        else:
             image = T.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4, hue=0.1)(image.permute(2, 0, 1))
             image = image.permute(1, 2, 0)
+
+        else:
+            grayscale: torch.Tensor = T.Grayscale()(image.permute(2, 0, 1))
+            image = grayscale.tile(3, 1, 1).permute(1, 2, 0)
 
         return image, background
 

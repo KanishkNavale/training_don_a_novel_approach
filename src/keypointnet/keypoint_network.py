@@ -8,7 +8,7 @@ import pytorch_lightning as pl
 from src.configurations import OptimizerConfig, KeypointNetConfig
 from src.keypointnet.losses import KeypointNetLosses
 from src.utils import init_backbone, initialize_config_file
-from src.don.synthetizer import augment_images_and_compute_correspondences as synthetize
+from src.keypointnet.debug import debug_keypoints
 
 
 class KeypointNetwork(pl.LightningModule):
@@ -21,19 +21,22 @@ class KeypointNetwork(pl.LightningModule):
         self.keypointnet_config = KeypointNetConfig.from_dictionary(config)
         self.optim_config = OptimizerConfig.from_dictionary(config)
 
+        self.debug_path = self.keypointnet_config.keypointnet.debug_path
+        self.debug = self.keypointnet_config.keypointnet.debug
+
         self.backbone = init_backbone(self.keypointnet_config.keypointnet.backbone)
         self.backbone.fc = torch.nn.Conv2d(self.backbone.inplanes,
                                            self.keypointnet_config.keypointnet.bottleneck_dimension,
-                                           kernel_stride=3)
+                                           kernel_size=1)
 
         self.spatial_layer = torch.nn.Conv2d(self.keypointnet_config.keypointnet.bottleneck_dimension,
                                              self.keypointnet_config.keypointnet.n_keypoints,
-                                             kernel_size=3,
+                                             kernel_size=1,
                                              padding='same')
 
         self.depth_layer = torch.nn.Conv2d(self.keypointnet_config.keypointnet.bottleneck_dimension,
                                            self.keypointnet_config.keypointnet.n_keypoints,
-                                           kernel_size=3,
+                                           kernel_size=1,
                                            padding='same')
 
         # Init. Loss
@@ -54,14 +57,12 @@ class KeypointNetwork(pl.LightningModule):
         vs = torch.arange(0, depth.shape[-1], 1, dtype=torch.float32, device=depth.device)
         grid = torch.meshgrid(us, vs, indexing='ij')
 
-        number_of_keypoints = spatial_probs.shape[0]
-
-        exp_u = torch.sum(spatial_probs * grid[0].unsqueeze(dim=0).tile(number_of_keypoints, 1, 1), dim=(-2, -1))
-        exp_v = torch.sum(spatial_probs * grid[1].unsqueeze(dim=0).tile(number_of_keypoints, 1, 1), dim=(-2, -1))
+        exp_u = torch.sum(spatial_probs * grid[0], dim=(-2, -1))
+        exp_v = torch.sum(spatial_probs * grid[1], dim=(-2, -1))
         exp_d = torch.sum(spatial_probs * depth, dim=(-2, -1))
-        exp_m = torch.sum(spatial_probs * mask, dim=(-2, -1))
+        exp_m = torch.sum(spatial_probs * mask.unsqueeze(dim=1), dim=(-2, -1))
 
-        return torch.hstack([exp_u, exp_v, exp_d]), exp_m
+        return torch.stack([exp_u, exp_v, exp_d], dim=-1), exp_m
 
     def _forward(self,
                  input: torch.Tensor,
@@ -118,18 +119,26 @@ class KeypointNetwork(pl.LightningModule):
         spat_probs_a, exp_uvd_a, exp_mask_a = self._forward(rgb_a, mask_a)
         spat_probs_b, exp_uvd_b, exp_mask_b = self._forward(rgb_b, mask_b)
 
-        computated_data = {"Spatial-Probs-A": spat_probs_a,
-                           "Spatial-Probs-B": spat_probs_b,
-                           "Spatial-Expectations-A": exp_uvd_a,
-                           "Spatial-Expectations-B": exp_uvd_b,
-                           "Spatial-Masks-A": exp_mask_a,
-                           "Spatial-Masks-B": exp_mask_b}
+        computed_data = {"Spatial-Probs-A": spat_probs_a,
+                         "Spatial-Probs-B": spat_probs_b,
+                         "Spatial-Expectations-A": exp_uvd_a,
+                         "Spatial-Expectations-B": exp_uvd_b,
+                         "Spatial-Masks-A": exp_mask_a,
+                         "Spatial-Masks-B": exp_mask_b}
 
-        return self.loss_function(batch.update(computated_data))
+        if self.debug:
+            debug_keypoints(rgb_a,
+                            exp_uvd_a[:, :, :2],
+                            rgb_b,
+                            exp_uvd_b[:, :, :2],
+                            self.colors,
+                            self.debug_path)
+
+        return self.loss_function(batch, computed_data)
 
     def training_step(self, batch, batch_idx):
         loss = self._step(batch)
-        self.log("training_loss", {**loss})
+        self.log("train_loss", loss["Total"])
 
         if self.optim_config.enable_schedule:
             sch = self.lr_schedulers()
@@ -139,18 +148,9 @@ class KeypointNetwork(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         loss = self._step(batch)
-        self.log("validation_loss", {**loss})
+        self.log("val_loss", loss["Total"])
 
         return loss["Total"]
-
-    def validation_epoch_end(self, outputs):
-        if self.keypointnet_config.loss.reduction == 'sum':
-            loss = torch.sum(torch.hstack(outputs))
-        else:
-            loss = torch.mean(torch.hstack(outputs))
-        self.log("val_loss", loss)
-
-        return loss
 
     def get_dense_representation(self, input: torch.Tensor) -> torch.Tensor:
         with torch.no_grad():
