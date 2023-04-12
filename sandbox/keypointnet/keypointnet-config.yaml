@@ -2,23 +2,23 @@ keypointnet:
     n_keypoints: 10
     bottleneck_dimension: 256
     backbone: "resnet_34"
-    debug: True
+    debug: False
     debug_path: ""
 
 loss:
     multiview_consistency: 1.0
-    relative_pose: 1.0
+    spatial_distribution: 1.0
     separation: 1.0
     silhouette: 1.0
 
     reduction: "mean"
-    margin: 2
+    margin: 5
 
 optimizer:
     name: Adam
     learning_rate: 3e-3
     enable_schedule: True
-    schedular_step_size: 2000
+    schedular_step_size: 4000
     gamma: 0.9
     weight_decay: None
 
@@ -41,7 +41,7 @@ dataloader:
     test_size: 0.1
     shuffle: True
 
-    n_workers: 10
+    n_workers: 14
     batch_size: 2
 
     random_hintergrund_probability: 0.4

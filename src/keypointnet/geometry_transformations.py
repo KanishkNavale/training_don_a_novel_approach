@@ -24,7 +24,7 @@ def camera_to_world_coordinates(cam_coords: torch.Tensor,
 
 def kabsch_tranformation(source: torch.Tensor,
                          target: torch.Tensor,
-                         noise: float = 1e-6) -> torch.Tensor:
+                         noise: float = 1e-4) -> torch.Tensor:
     """Computes the relative transform between two sets of 3D points
 
     Reference: Kabsch, Wolfgang.

@@ -25,7 +25,7 @@ class KeypointNet:
 @dataclass
 class Loss:
     multiview_consistency: float
-    relative_pose: float
+    spatial_distribution: float
     separation: float
     silhouette: float
 
@@ -35,7 +35,7 @@ class Loss:
     @property
     def loss_ratios_as_tensor(self) -> torch.Tensor:
         return torch.as_tensor([self.multiview_consistency,
-                                self.relative_pose,
+                                self.spatial_distribution,
                                 self.separation,
                                 self.silhouette])
 

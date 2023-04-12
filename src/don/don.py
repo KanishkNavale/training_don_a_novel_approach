@@ -82,7 +82,9 @@ class DON(pl.LightningModule):
                                   matches_b)
 
         # Override to save the last debug for the last epoch
-        if self.debug or self.trainer.current_epoch == self.trainer.max_epochs - 1:
+        if (self.debug or
+            self.trainer.current_epoch == self.trainer.max_epochs - 1 or
+                self.trainer.current_epoch % 50 == 0):
             debug_correspondences(image_a,
                                   matches_a,
                                   image_b,
@@ -118,7 +120,7 @@ class DON(pl.LightningModule):
         with torch.no_grad():
             return self._forward(image)
 
-    def compute_descriptors_from_numpy(self, numpy_image: np.ndarray) -> np.ndarray:
+    def compute_descriptors_from_numpy_image(self, numpy_image: np.ndarray) -> np.ndarray:
         image_tensor = torch.as_tensor(numpy_image, device=self.device, dtype=self.dtype) / 255.0
 
         if self.device != torch.device("cpu"):

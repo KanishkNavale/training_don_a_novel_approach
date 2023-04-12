@@ -27,7 +27,8 @@ class OptimizerConfig:
             if self.gamma <= 0 or self.gamma is None:
                 raise ValueError(f"The gamma: {self.gamma} must be greater than 0")
 
-        if self.weight_decay == 'None' or self.weight_decay == 0:
-            self.weight_decay = 0
-        else:
-            raise ValueError(f"The weight decay: {self.weight_decay} must be greater than or equal to 0")
+        if not isinstance(self.weight_decay, float):
+            if self.weight_decay == 'None' or self.weight_decay == 0:
+                self.weight_decay = 0
+            else:
+                raise ValueError(f"The weight decay: {self.weight_decay} must be greater than or equal to 0")

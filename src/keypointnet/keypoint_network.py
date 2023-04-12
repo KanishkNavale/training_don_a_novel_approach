@@ -1,4 +1,6 @@
-from typing import Tuple, Dict
+from __future__ import annotations
+from typing import Tuple, Dict, Union
+import os
 
 import numpy as np
 import torch
@@ -50,8 +52,8 @@ class KeypointNetwork(pl.LightningModule):
 
     @staticmethod
     def _compute_spatial_expectations(depth: torch.Tensor,
-                                      mask: torch.Tensor,
-                                      spatial_probs: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+                                      mask: Union[torch.Tensor, None],
+                                      spatial_probs: torch.Tensor) -> Tuple[torch.Tensor, Union[torch.Tensor, None]]:
 
         us = torch.arange(0, depth.shape[-2], 1, dtype=torch.float32, device=depth.device)
         vs = torch.arange(0, depth.shape[-1], 1, dtype=torch.float32, device=depth.device)
@@ -60,13 +62,16 @@ class KeypointNetwork(pl.LightningModule):
         exp_u = torch.sum(spatial_probs * grid[0], dim=(-2, -1))
         exp_v = torch.sum(spatial_probs * grid[1], dim=(-2, -1))
         exp_d = torch.sum(spatial_probs * depth, dim=(-2, -1))
-        exp_m = torch.sum(spatial_probs * mask.unsqueeze(dim=1), dim=(-2, -1))
 
-        return torch.stack([exp_u, exp_v, exp_d], dim=-1), exp_m
+        if mask is not None:
+            exp_m = torch.sum(spatial_probs * mask.unsqueeze(dim=1), dim=(-2, -1))
+            return (torch.stack([exp_u, exp_v, exp_d], dim=-1), exp_m)
+        else:
+            return (torch.stack([exp_u, exp_v, exp_d], dim=-1), None)
 
     def _forward(self,
                  input: torch.Tensor,
-                 masks: torch.Tensor) -> torch.Tensor:
+                 masks: Union[torch.Tensor, None]) -> Tuple[torch.Tensor, torch.Tensor, Union[torch.Tensor, None]]:
 
         x = self.backbone.forward(input)
         resized_x = F.interpolate(x,
@@ -105,9 +110,7 @@ class KeypointNetwork(pl.LightningModule):
                                                   verbose=False)
             return {
                 "optimizer": optimizer,
-                "lr_scheduler": {
-                    "scheduler": sch
-                }
+                "lr_scheduler": {"scheduler": sch}
             }
         else:
             return optimizer
@@ -126,7 +129,9 @@ class KeypointNetwork(pl.LightningModule):
                          "Spatial-Masks-A": exp_mask_a,
                          "Spatial-Masks-B": exp_mask_b}
 
-        if self.debug:
+        if (self.debug or
+            self.trainer.current_epoch == self.trainer.max_epochs - 1 or
+                self.trainer.current_epoch % 50 == 0):
             debug_keypoints(rgb_a,
                             exp_uvd_a[:, :, :2],
                             rgb_b,
@@ -136,11 +141,17 @@ class KeypointNetwork(pl.LightningModule):
 
         return self.loss_function(batch, computed_data)
 
+    def detail_log(self, loss: Dict[str, torch.Tensor], placeholder_name: str):
+        _loss = loss.copy()
+        _loss.pop("Total", None)
+        self.logger.experiment.add_scalars(placeholder_name, _loss, self.trainer.global_step)
+
     def training_step(self, batch, batch_idx):
         loss = self._step(batch)
         self.log("train_loss", loss["Total"])
+        self.detail_log(loss, "training loss")
 
-        if self.optim_config.enable_schedule:
+        if self.optim_config.enable_schedule and self.trainer.current_epoch != 0:
             sch = self.lr_schedulers()
             sch.step()
 
@@ -149,13 +160,41 @@ class KeypointNetwork(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         loss = self._step(batch)
         self.log("val_loss", loss["Total"])
-
+        self.detail_log(loss, "validation loss")
         return loss["Total"]
 
-    def get_dense_representation(self, input: torch.Tensor) -> torch.Tensor:
+    def mine_dense_local_descriptors(self, input: torch.Tensor) -> torch.Tensor:
         with torch.no_grad():
-            x = self.resnet.forward(input)
+            x = self.backbone.forward(input)
             return F.interpolate(x,
                                  size=input.size()[-2:],
                                  mode='bilinear',
                                  align_corners=True)
+
+    def compute_descriptors_and_keypoints_from_numpy_image(self, numpy_image: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+        image_tensor = torch.as_tensor(numpy_image, device=self.device, dtype=self.dtype) / 255.0
+        image_tensor = image_tensor.permute(2, 0, 1).unsqueeze(dim=0)
+
+        if self.device != torch.device("cpu"):
+            image_tensor = image_tensor.pin_memory(True)
+
+        descriptors = self.mine_dense_local_descriptors(image_tensor)
+
+        with torch.no_grad():
+            _, keypoint_expectations, _ = self._forward(image_tensor)
+
+        return (keypoint_expectations.squeeze(dim=0).cpu().numpy(),
+                descriptors.squeeze(dim=0).permute(1, 2, 0).cpu().numpy())
+
+
+def load_trained_don_model(yaml_config_path: str, trained_model_path: Union[str, None] = None) -> KeypointNetwork:
+
+    if trained_model_path is None:
+        config = initialize_config_file(yaml_config_path)
+        trained_model_name = config["trainer"]["model_checkpoint_name"] + ".ckpt"
+        trained_model_path = os.path.join(config["trainer"]["model_path"], trained_model_name)
+
+    model = KeypointNetwork(yaml_config_path)
+    trained_model = model.load_from_checkpoint(trained_model_path, yaml_config_path=yaml_config_path)
+
+    return trained_model

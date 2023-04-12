@@ -11,13 +11,12 @@ def l1(target: torch.Tensor, source: torch.Tensor, dim: int = -1) -> torch.Tenso
     return torch.linalg.norm(source - target, ord=1, dim=dim)
 
 
-@torch.jit.script
 def guassian_distance_kernel(target: torch.Tensor,
                              source: torch.Tensor,
-                             temperature: torch.Tensor,
+                             temperature: float,
                              dim: int = -1) -> torch.Tensor:
     distances = l2(target, source, dim)
-    weights = torch.exp(-1.0 * distances / temperature)
+    weights = torch.exp((-1.0 * distances) / temperature)
     return weights
 
 

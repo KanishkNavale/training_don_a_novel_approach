@@ -17,6 +17,11 @@ class TrainerConfig:
     logging_frequency: bool
     validation_frequency: int
 
+    @staticmethod
+    def _create_dir(path: str):
+        if not os.path.exists(path):
+            os.makedirs(path)
+
     def __post_init__(self):
         self.training_directory = os.path.abspath(self.training_directory)
         self.model_path = os.path.abspath(self.model_path)
@@ -24,6 +29,9 @@ class TrainerConfig:
 
         if self.precision not in ["medium", "high"]:
             raise ValueError("Precision must be in {medium, high}")
+
+        self._create_dir(self.training_directory)
+        self._create_dir(self.tensorboard_path)
 
     @classmethod
     def from_dictionary(cls, dictionary: Dict[str, Any]) -> TrainerConfig:
