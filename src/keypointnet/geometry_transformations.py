@@ -82,9 +82,8 @@ def kabsch_tranformation(source: torch.Tensor,
     rotation_source_to_target = V @ normalizer @ U.permute(0, 2, 1)
 
     translation_source_to_taget = centroid_target.mT - (rotation_source_to_target @ centroid_source.mT)
-    transformation_source_to_target = Rt_to_matrix4x4(rotation_source_to_target, translation_source_to_taget)
 
     if len(source.shape) == 2 and len(target.shape) == 2:
-        return transformation_source_to_target.squeeze(dim=0)
+        return rotation_source_to_target.squeeze(dim=0), translation_source_to_taget.squeeze(dim=0)
     else:
-        return transformation_source_to_target
+        return rotation_source_to_target, translation_source_to_taget

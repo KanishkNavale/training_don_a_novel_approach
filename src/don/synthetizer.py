@@ -56,7 +56,7 @@ def _get_random_augmentation(image: torch.Tensor) -> torch.Tensor:
 def augment_images_and_compute_correspondences(
         images: torch.Tensor,
         masks: torch.Tensor,
-        backgrounds: Union[torch.Tensor, None],
+        backgrounds: Union[torch.Tensor, None] = None,
         n_correspondences: int = 100) -> torch.Tensor:
 
     if backgrounds is not None:
@@ -68,7 +68,7 @@ def augment_images_and_compute_correspondences(
     augmented_image_b = _get_random_augmentation(_stack_image_with_mask_and_grid(augmented_images, masks))
 
     augmented_images_a, masks_a, grids_a = _destack_image_mask_spatialgrid(augmented_image_a)
-    augmented_images_b, _, grids_b = _destack_image_mask_spatialgrid(augmented_image_b)
+    augmented_images_b, masks_b, grids_b = _destack_image_mask_spatialgrid(augmented_image_b)
 
     matches_a: List[torch.Tensor] = []
     matches_b: List[torch.Tensor] = []
@@ -106,4 +106,4 @@ def augment_images_and_compute_correspondences(
         matches_a.append(mutual_match_a[trimming_indices].type(torch.int64))
         matches_b.append(mutual_match_b[trimming_indices].type(torch.int64))
 
-    return augmented_images_a, torch.stack(matches_a), augmented_images_b, torch.stack(matches_b)
+    return augmented_images_a, torch.stack(matches_a), masks_a, augmented_images_b, torch.stack(matches_b), masks_b

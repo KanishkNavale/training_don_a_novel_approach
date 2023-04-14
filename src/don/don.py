@@ -69,10 +69,10 @@ class DON(pl.LightningModule):
 
     def _step(self, batch) -> torch.Tensor:
         image, mask, backgrounds = batch["RGBs-A"], batch["Masks-A"], batch["Random-Backgrounds"]
-        image_a, matches_a, image_b, matches_b = synthetize(image,
-                                                            mask,
-                                                            backgrounds,
-                                                            self.don_config.don.n_correspondence)
+        image_a, matches_a, _, image_b, matches_b, _ = synthetize(image,
+                                                                  mask,
+                                                                  backgrounds,
+                                                                  self.don_config.don.n_correspondence)
         dense_descriptors_a = self._forward(image_a)
         dense_descriptors_b = self._forward(image_b)
 

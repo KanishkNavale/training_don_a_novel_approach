@@ -8,7 +8,7 @@ if __name__ == "__main__":
     image = cv2.imread("dataset/298_rgb.png")
     trained_model = load_trained_don_model("sandbox/don/don-config.yaml")
 
-    descriptors = trained_model.compute_descriptors_from_numpy(image)
+    descriptors = trained_model.compute_descriptors_from_numpy_image(image)
 
     app = DescritporInspectorApp(rgb_a=image,
                                  rgb_b=image,

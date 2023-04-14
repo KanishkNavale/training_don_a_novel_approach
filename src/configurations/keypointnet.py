@@ -28,6 +28,7 @@ class Loss:
     spatial_distribution: float
     separation: float
     silhouette: float
+    pose: float
 
     reduction: str
     margin: float
@@ -35,9 +36,10 @@ class Loss:
     @property
     def loss_ratios_as_tensor(self) -> torch.Tensor:
         return torch.as_tensor([self.multiview_consistency,
-                                self.spatial_distribution,
+                                self.pose,
                                 self.separation,
-                                self.silhouette])
+                                self.silhouette,
+                                self.spatial_distribution])
 
     @classmethod
     def from_dictionary(cls, dictionary: Dict[str, Any]) -> Loss:

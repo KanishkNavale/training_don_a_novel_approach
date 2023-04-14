@@ -2,14 +2,15 @@ keypointnet:
     n_keypoints: 10
     bottleneck_dimension: 256
     backbone: "resnet_34"
-    debug: False
+    debug: True
     debug_path: ""
 
 loss:
-    multiview_consistency: 1.0
-    spatial_distribution: 1.0
-    separation: 1.0
+    multiview_consistency: 2.0
+    spatial_distribution: 0.001
+    separation: 0.5
     silhouette: 1.0
+    pose: 0.1
 
     reduction: "mean"
     margin: 5
@@ -17,7 +18,7 @@ loss:
 optimizer:
     name: Adam
     learning_rate: 3e-3
-    enable_schedule: True
+    enable_schedule: False
     schedular_step_size: 4000
     gamma: 0.9
     weight_decay: None
