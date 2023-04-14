@@ -1,5 +1,6 @@
+from typing import Union
+
 import torch
-from kornia.geometry import Rt_to_matrix4x4
 
 
 def pixel_to_camera_coordinates(uv: torch.Tensor,
@@ -24,7 +25,7 @@ def camera_to_world_coordinates(cam_coords: torch.Tensor,
 
 def kabsch_tranformation(source: torch.Tensor,
                          target: torch.Tensor,
-                         noise: float = 1e-4) -> torch.Tensor:
+                         noise: Union[float, None] = None) -> torch.Tensor:
     """Computes the relative transform between two sets of 3D points
 
     Reference: Kabsch, Wolfgang.
@@ -43,8 +44,9 @@ def kabsch_tranformation(source: torch.Tensor,
     source = source.type(torch.float32)
     target = target.type(torch.float32)
 
-    source = source + torch.randn_like(source).uniform_(0.0, noise)
-    target = target + torch.randn_like(target).uniform_(0.0, noise)
+    if noise is not None:
+        source = source + torch.randn_like(source).uniform_(0.0, noise)
+        target = target + torch.randn_like(target).uniform_(0.0, noise)
 
     if not source.shape[-2:-1] >= torch.Size([3]) or not target.shape[-2:-1] >= torch.Size([3]):
         raise ValueError(

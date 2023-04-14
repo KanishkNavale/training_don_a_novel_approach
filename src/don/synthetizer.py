@@ -42,11 +42,11 @@ def _destack_image_mask_spatialgrid(augmented_image: torch.Tensor) -> Tuple[torc
     return image, mask, spatial_grid
 
 
-def _get_random_augmentation(image: torch.Tensor) -> torch.Tensor:
+def _get_random_augmentation(image: torch.Tensor, enable_prespective: bool = True) -> torch.Tensor:
     if 0 == np.random.randint(0, 2):
         return T.RandomAffine(degrees=90, translate=(0, 0.3))(image)
 
-    if 0 == np.random.randint(0, 2):
+    if 0 == np.random.randint(0, 2) and enable_prespective:
         return T.RandomPerspective(distortion_scale=0.5, p=1.0)(image)
 
     else:
@@ -57,15 +57,18 @@ def augment_images_and_compute_correspondences(
         images: torch.Tensor,
         masks: torch.Tensor,
         backgrounds: Union[torch.Tensor, None] = None,
-        n_correspondences: int = 100) -> torch.Tensor:
+        n_correspondences: int = 100,
+        enable_prespective_augmentation: bool = True) -> torch.Tensor:
 
     if backgrounds is not None:
         augmented_images = _background_image_augment(images, backgrounds, masks)
     else:
         augmented_images = images
 
-    augmented_image_a = _get_random_augmentation(_stack_image_with_mask_and_grid(images, masks))
-    augmented_image_b = _get_random_augmentation(_stack_image_with_mask_and_grid(augmented_images, masks))
+    augmented_image_a = _get_random_augmentation(_stack_image_with_mask_and_grid(images, masks),
+                                                 enable_prespective_augmentation)
+    augmented_image_b = _get_random_augmentation(_stack_image_with_mask_and_grid(augmented_images, masks),
+                                                 enable_prespective_augmentation)
 
     augmented_images_a, masks_a, grids_a = _destack_image_mask_spatialgrid(augmented_image_a)
     augmented_images_b, masks_b, grids_b = _destack_image_mask_spatialgrid(augmented_image_b)

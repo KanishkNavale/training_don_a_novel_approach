@@ -31,7 +31,7 @@ class KeypointNetwork(pl.LightningModule):
         self.backbone = init_backbone(self.keypointnet_config.keypointnet.backbone)
         self.backbone.fc = torch.nn.Conv2d(self.backbone.inplanes,
                                            self.keypointnet_config.keypointnet.bottleneck_dimension,
-                                           kernel_size=1)
+                                           kernel_size=3)
 
         self.spatial_layer = torch.nn.Conv2d(self.keypointnet_config.keypointnet.bottleneck_dimension,
                                              self.keypointnet_config.keypointnet.n_keypoints,
@@ -47,7 +47,7 @@ class KeypointNetwork(pl.LightningModule):
                         np.random.randint(0, 255))
                        for _ in range(self.keypointnet_config.keypointnet.n_keypoints)]
 
-    @staticmethod
+    @ staticmethod
     def _compute_spatial_expectations(mask: Union[torch.Tensor, None],
                                       spatial_probs: torch.Tensor) -> Tuple[torch.Tensor, Union[torch.Tensor, None]]:
 
@@ -64,17 +64,21 @@ class KeypointNetwork(pl.LightningModule):
         else:
             return (torch.stack([exp_u, exp_v], dim=-1), None)
 
+    @staticmethod
+    def _upsample(x: torch.Tensor, ref_x: torch.Tensor) -> torch.Tensor:
+        return F.interpolate(x,
+                             size=ref_x.size()[-2:],
+                             mode='bilinear',
+                             align_corners=True)
+
     def _forward(self,
-                 input: torch.Tensor,
+                 image: torch.Tensor,
                  masks: Union[torch.Tensor, None]) -> Tuple[torch.Tensor, torch.Tensor, Union[torch.Tensor, None]]:
 
-        x = self.backbone.forward(input)
-        resized_x = F.interpolate(x,
-                                  size=input.size()[-2:],
-                                  mode='bilinear',
-                                  align_corners=True)
+        backbone_features = self.backbone.forward(image)
+        spatial_weights = self.spatial_layer.forward(backbone_features)
+        spatial_weights = self._upsample(spatial_weights, image)
 
-        spatial_weights = self.spatial_layer.forward(resized_x)
         flat_weights = spatial_weights.reshape(spatial_weights.shape[0],
                                                spatial_weights.shape[1],
                                                spatial_weights.shape[2] * spatial_weights.shape[3])
@@ -82,8 +86,8 @@ class KeypointNetwork(pl.LightningModule):
         flat_probs = F.softmax(flat_weights, dim=-1)
         spatial_probs = flat_probs.reshape(flat_probs.shape[0],
                                            flat_probs.shape[1],
-                                           input.shape[2],
-                                           input.shape[3])
+                                           image.shape[2],
+                                           image.shape[3])
 
         exp_uvs, exp_mask = self._compute_spatial_expectations(masks, spatial_probs)
 
@@ -113,17 +117,18 @@ class KeypointNetwork(pl.LightningModule):
         images_a, matches_a, masks_a, images_b, matches_b, masks_b = sythetize(image,
                                                                                mask,
                                                                                backgrounds,
-                                                                               25)
+                                                                               n_correspondences=25,
+                                                                               enable_prespective_augmentation=False)
 
         optimal_rotation_a_to_b, optimal_translation_a_to_b = kabsch_tranformation(matches_a, matches_b)
 
-        spat_probs_a, exp_uvd_a, exp_mask_a = self._forward(images_a, masks_a)
-        spat_probs_b, exp_uvd_b, exp_mask_b = self._forward(images_b, masks_b)
+        spat_probs_a, exp_uv_a, exp_mask_a = self._forward(images_a, masks_a)
+        spat_probs_b, exp_uv_b, exp_mask_b = self._forward(images_b, masks_b)
 
         computed_data = {"Spatial-Probs-A": spat_probs_a,
                          "Spatial-Probs-B": spat_probs_b,
-                         "Spatial-Expectations-A": exp_uvd_a,
-                         "Spatial-Expectations-B": exp_uvd_b,
+                         "Spatial-Expectations-A": exp_uv_a,
+                         "Spatial-Expectations-B": exp_uv_b,
                          "Spatial-Masks-A": exp_mask_a,
                          "Spatial-Masks-B": exp_mask_b,
                          "Optimal-Rotation-A2B": optimal_rotation_a_to_b,
@@ -133,9 +138,9 @@ class KeypointNetwork(pl.LightningModule):
             self.trainer.current_epoch == self.trainer.max_epochs - 1 or
                 self.trainer.current_epoch % 50 == 0):
             debug_keypoints(images_a,
-                            exp_uvd_a[:, :, :2],
+                            exp_uv_a,
                             images_b,
-                            exp_uvd_b[:, :, :2],
+                            exp_uv_b,
                             self.colors,
                             self.debug_path)
 
@@ -163,11 +168,11 @@ class KeypointNetwork(pl.LightningModule):
         self.detail_log(loss, "validation loss")
         return loss["Total"]
 
-    def mine_dense_local_descriptors(self, input: torch.Tensor) -> torch.Tensor:
+    def mine_dense_local_descriptors(self, image: torch.Tensor) -> torch.Tensor:
         with torch.no_grad():
-            x = self.backbone.forward(input)
+            x = self.backbone.forward(image)
             return F.interpolate(x,
-                                 size=input.size()[-2:],
+                                 size=image.size()[-2:],
                                  mode='bilinear',
                                  align_corners=True)
 

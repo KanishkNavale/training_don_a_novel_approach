@@ -57,14 +57,15 @@ class KeypointNetLosses:
     @staticmethod
     def _compute_pose_loss(uvs_a: torch.Tensor,
                            uvs_b: torch.Tensor,
-                           rotation_a_to_b: torch.Tensor,
-                           translation_a_to_b: torch.Tensor) -> torch.Tensor:
+                           rotation_a_to_b: torch.Tensor) -> torch.Tensor:
 
-        predicted_rotation, predicted_translation = kabsch_tranformation(uvs_a, uvs_b)
-        rotation_distance = torch.linalg.norm(rotation_a_to_b - predicted_rotation, dim=(-2, -1))
-        translation_distance = torch.mean(torch.linalg.norm(translation_a_to_b - predicted_translation, dim=-1), dim=-1)
+        predicted_rotation, _ = kabsch_tranformation(uvs_a, uvs_b, noise=1e-2)
 
-        return rotation_distance + translation_distance
+        relative_rotation = rotation_a_to_b @ predicted_rotation.permute(0, 2, 1)
+        eye = torch.eye(2, device=relative_rotation.device).unsqueeze(0).tile(relative_rotation.shape[0], 1, 1)
+        rotation_distance = torch.linalg.norm(eye - relative_rotation, dim=(-2, -1))
+
+        return rotation_distance
 
     @staticmethod
     def _compute_stable_log(x: torch.tensor) -> torch.Tensor:
@@ -93,8 +94,9 @@ class KeypointNetLosses:
 
         grid = torch.stack(torch.meshgrid(us, vs, indexing='ij'), dim=-1)
 
-        tiled_grid = grid[None, None, :].tile(
-            spat_probs.shape[0], spat_exp.shape[1], 1, 1, 1)
+        tiled_grid = grid[None, None, :].tile(spat_probs.shape[0],
+                                              spat_exp.shape[1],
+                                              1, 1, 1)
         tiled_exp = spat_exp[:, :, None, None, :]
 
         distances = torch.linalg.norm(tiled_grid - tiled_exp, dim=-1)
@@ -103,7 +105,8 @@ class KeypointNetLosses:
 
         return torch.mean(torch.sum(spat_probs * masked_distances, dim=(-2, -1)), dim=-1)
 
-    def _compute_variance_loss(self, uv_a: torch.Tensor,
+    def _compute_variance_loss(self,
+                               uv_a: torch.Tensor,
                                spat_probs_a: torch.Tensor,
                                uv_b: torch.Tensor,
                                spat_probs_b: torch.Tensor) -> torch.Tensor:
@@ -164,19 +167,18 @@ class KeypointNetLosses:
 
         pose_loss = self._compute_pose_loss(exp_uvs_a,
                                             exp_uvs_b,
-                                            optimal_rotation,
-                                            optimal_translation)
+                                            optimal_rotation)
 
         weighted_batch_loss = self._compute_weighted_losses(mvc_loss,
                                                             pose_loss,
                                                             sep_loss,
                                                             sil_loss,
-                                                            var_loss,)
+                                                            var_loss)
 
         return {"Total": torch.sum(weighted_batch_loss),
                 "Consistency": weighted_batch_loss[0],
                 "Pose": weighted_batch_loss[1],
                 "Separation": weighted_batch_loss[2],
                 "Silhoutte": weighted_batch_loss[3],
-                "Divergence": weighted_batch_loss[4]
+                "Divergence": weighted_batch_loss[4],
                 }
