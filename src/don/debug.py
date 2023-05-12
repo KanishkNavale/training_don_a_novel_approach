@@ -84,11 +84,11 @@ def debug_descriptors(images_a: torch.Tensor,
             flat_reduced_descriptors_a = pca_computer.fit_transform(descriptors_a.reshape(-1, descriptors_a.shape[-1]))
             flat_reduced_descriptors_b = pca_computer.transform(descriptors_b.reshape(-1, descriptors_a.shape[-1]))
 
-            descriptors_a = flat_reduced_descriptors_a.reshape(dense_descriptors_a.shape[0],
-                                                               detached_descriptors_a.shape[1],
+            descriptors_a = flat_reduced_descriptors_a.reshape(descriptors_a.shape[0],
+                                                               descriptors_a.shape[1],
                                                                3)
-            descriptors_a = flat_reduced_descriptors_b.reshape(dense_descriptors_b.shape[0],
-                                                               detached_descriptors_b.shape[1],
+            descriptors_b = flat_reduced_descriptors_b.reshape(descriptors_b.shape[0],
+                                                               descriptors_b.shape[1],
                                                                3)
 
         descriptors_a = _convert_numpy_image_to_cv2_image(descriptors_a)

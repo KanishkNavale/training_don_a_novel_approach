@@ -76,7 +76,7 @@ class DON(pl.LightningModule):
         return scaled_map
 
     def _step(self, batch) -> torch.Tensor:
-        image, mask, backgrounds = batch["RGBs-A"], batch["Masks-A"], batch["Random-Backgrounds"]
+        image, mask, backgrounds = batch["RGBs"], batch["Masks"], batch["Random-Backgrounds"]
         image_a, matches_a, _, image_b, matches_b, _ = synthetize(image,
                                                                   mask,
                                                                   backgrounds,

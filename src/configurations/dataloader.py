@@ -6,9 +6,10 @@ import os
 
 @dataclass
 class DataLoaderConfig:
-    directory: str
+    rgb_directory: str
+    mask_directory: str
+    random_background_directory: str
 
-    depth_ratio: str
     test_size: float
     shuffle: int
 
@@ -28,7 +29,9 @@ class DataLoaderConfig:
         return cls(**dictionary.dataloader)
 
     def __post_init__(self):
-        self.directory = os.path.abspath(self.directory)
+        self.rgb_directory = os.path.abspath(self.rgb_directory)
+        self.mask_directory = os.path.abspath(self.mask_directory)
+        self.random_background_directory = os.path.abspath(self.random_background_directory)
 
         if self.random_hintergrund_probability + self.noisy_hintergrund_probability + self.masked_hintergrund_probability != 1.0:
             raise ValueError("The probabilities of the background augmentation must sum up to 1.")

@@ -19,12 +19,14 @@ torch.multiprocessing.set_sharing_strategy('file_system')
 
 class Dataset(Dataset):
     def __init__(self,
-                 data: List[str],
+                 rgbs: List[str],
+                 masks: List[str],
                  config: DataLoaderConfig) -> None:
-        self.data = data
+        self.rgbs = rgbs
+        self.masks = masks
         self.config = config
-        self.random_backgrounds = [os.path.join("dataset/random_backgrounds/images", file)
-                                   for file in os.listdir("dataset/random_backgrounds/images")]
+        self.random_backgrounds = [os.path.join(self.config.random_background_directory, file)
+                                   for file in os.listdir(self.config.random_background_directory)]
 
         # deconstruct the config
         self.random_prob = int(1.0 / self.config.random_hintergrund_probability)
@@ -36,7 +38,7 @@ class Dataset(Dataset):
         self.gaussian_blur_prob = int(1.0 / self.config.gaussian_blur_probability)
 
     def __len__(self) -> int:
-        return len(self.data)
+        return len(self.rgbs)
 
     def _augment_image(self,
                        image: torch.Tensor,
@@ -92,52 +94,20 @@ class Dataset(Dataset):
 
     def __getitem__(self, idx: int) -> Dict[str, Any]:
 
-        with open(self.data[idx], 'rb') as f:
-            pickled = pickle.load(f)
+        rgb = cv2.imread(self.rgbs[idx])
+        mask = cv2.imread(self.masks[idx])[..., 0]
 
-        rgb_a = pickled["rgb_a"]
-        depth_a = pickled["depth_a"]
-        mask_a = pickled["mask_a"]
-        extrinsic_a = pickled["pose_a"]
-        intrinsic_a = pickled["intrinsics"]
-
-        rgb_b = pickled["rgb_b"]
-        depth_b = pickled["depth_b"]
-        mask_b = pickled["mask_b"]
-        extrinsic_b = pickled["pose_b"]
-        intrinsic_b = pickled["intrinsics"]
-
-        rgb_a = torch.as_tensor(rgb_a / 255, dtype=torch.float32)
-        depth_a = torch.as_tensor(depth_a / self.config.depth_ratio, dtype=torch.float32)
-        mask_a = torch.as_tensor(mask_a / 255, dtype=torch.float32)
-        extrinsic_a = torch.as_tensor(extrinsic_a, dtype=torch.float32)
-        intrinsic_a = torch.as_tensor(intrinsic_a, dtype=torch.float32)
-
-        rgb_b = torch.as_tensor(rgb_b / 255, dtype=torch.float32)
-        depth_b = torch.as_tensor(depth_b / self.config.depth_ratio, dtype=torch.float32)
-        mask_b = torch.as_tensor(mask_b / 255, dtype=torch.float32)
-        extrinsic_b = torch.as_tensor(extrinsic_b, dtype=torch.float32)
-        intrinsic_b = torch.as_tensor(intrinsic_b, dtype=torch.float32)
+        rgb = torch.as_tensor(rgb / 255, dtype=torch.float32)
+        mask = torch.as_tensor(mask / 255, dtype=torch.float32)
 
         # Load a random background
         background = cv2.imread(random.choice(self.random_backgrounds)) / 255
-        background = cv2.resize(background, (rgb_b.shape[1], rgb_b.shape[0]))
-        background = torch.as_tensor(background, dtype=rgb_b.dtype)
-
-        rgb_a, _ = self._augment_image(rgb_a, mask_a, background)
-        rgb_b, background = self._augment_image(rgb_b, mask_b, background)
+        background = cv2.resize(background, (rgb.shape[1], rgb.shape[0]))
+        background = torch.as_tensor(background, dtype=rgb.dtype)
 
         return {
-            "RGBs-A": rgb_a.permute(2, 0, 1),
-            "RGBs-B": rgb_b.permute(2, 0, 1),
-            "Depths-A": depth_a,
-            "Depths-B": depth_b,
-            "Intrinsics-A": intrinsic_a,
-            "Intrinsics-B": intrinsic_b,
-            "Extrinsics-A": extrinsic_a,
-            "Extrinsics-B": extrinsic_b,
-            "Masks-A": mask_a,
-            "Masks-B": mask_b,
+            "RGBs": rgb.permute(2, 0, 1),
+            "Masks": mask,
             "Random-Backgrounds": background.permute(2, 0, 1)
         }
 
@@ -154,18 +124,19 @@ class DataModule(pl.LightningDataModule):
 
     def prepare_data(self) -> None:
         # Reading RGBD data
-        directory = self.config.directory
-        self.files = sorted([os.path.join(directory, file) for file in os.listdir(directory)])
+        self.rgbs = sorted([os.path.join(self.config.rgb_directory, file) for file in os.listdir(self.config.rgb_directory)])
+        self.masks = sorted([os.path.join(self.config.mask_directory, file) for file in os.listdir(self.config.mask_directory)])
 
     def setup(self, stage: str = None):
         # Create training, validation datasplits
-        (train_files, val_files) = train_test_split(self.files,
-                                                    shuffle=self.config.shuffle,
-                                                    test_size=self.config.test_size)
+        (train_rgs, val_rgbs, train_masks, val_masks) = train_test_split(self.rgbs,
+                                                                         self.masks,
+                                                                         shuffle=self.config.shuffle,
+                                                                         test_size=self.config.test_size)
 
         if stage == 'fit':
-            self.training_dataset = Dataset(train_files, self.config)
-            self.validation_dataset = Dataset(val_files, self.config)
+            self.training_dataset = Dataset(train_rgs, train_masks, self.config)
+            self.validation_dataset = Dataset(val_rgbs, val_masks, self.config)
 
     def train_dataloader(self):
         return DataLoader(self.training_dataset,

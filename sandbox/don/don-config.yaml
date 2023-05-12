@@ -1,8 +1,8 @@
 don:
-    descriptor_dimension: 3
+    descriptor_dimension: 6
     backbone: resnet_34
-    n_correspondence: 125
-    debug: False
+    n_correspondence: 64
+    debug: True
     debug_path: ""
 
 optimizer:
@@ -31,10 +31,11 @@ trainer:
     validation_frequency: 1
 
 dataloader:
-    directory: dataset/dataset
-    depth_ratio: 1
+    rgb_directory: dataset/rgbs
+    mask_directory: dataset/masks
+    random_background_directory: dataset/random_backgrounds
 
-    test_size: 0.1
+    test_size: 0.2
     shuffle: True
 
     n_workers: 10
