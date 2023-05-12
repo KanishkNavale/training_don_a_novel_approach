@@ -28,10 +28,18 @@ class KeypointNetwork(pl.LightningModule):
         self.debug_path = self.keypointnet_config.keypointnet.debug_path
         self.debug = self.keypointnet_config.keypointnet.debug
 
+        # Modified backbone to extract conv. features
         self.backbone = init_backbone(self.keypointnet_config.keypointnet.backbone)
-        self.backbone.fc = torch.nn.Conv2d(self.backbone.inplanes,
-                                           self.keypointnet_config.keypointnet.bottleneck_dimension,
-                                           kernel_size=3)
+        self.backbone = torch.nn.Sequential(self.backbone.conv1,
+                                            self.backbone.bn1,
+                                            self.backbone.relu,
+                                            self.backbone.layer1,
+                                            self.backbone.layer2,
+                                            self.backbone.layer3,
+                                            self.backbone.layer4,
+                                            torch.nn.Conv2d(self.backbone.inplanes,
+                                                            self.keypointnet_config.keypointnet.bottleneck_dimension,
+                                                            kernel_size=3))
 
         self.spatial_layer = torch.nn.Conv2d(self.keypointnet_config.keypointnet.bottleneck_dimension,
                                              self.keypointnet_config.keypointnet.n_keypoints,
@@ -134,9 +142,7 @@ class KeypointNetwork(pl.LightningModule):
                          "Optimal-Rotation-A2B": optimal_rotation_a_to_b,
                          "Optimal-Translation-A2B": optimal_translation_a_to_b}
 
-        if (self.debug or
-            self.trainer.current_epoch == self.trainer.max_epochs - 1 or
-                self.trainer.current_epoch % 50 == 0):
+        if (self.debug or self.trainer.current_epoch == self.trainer.max_epochs - 1 or self.trainer.validating):
             debug_keypoints(images_a,
                             exp_uv_a,
                             images_b,
@@ -168,28 +174,14 @@ class KeypointNetwork(pl.LightningModule):
         self.detail_log(loss, "validation loss")
         return loss["Total"]
 
-    def mine_dense_local_descriptors(self, image: torch.Tensor) -> torch.Tensor:
+    def compute_dense_local_descriptors(self, image: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
         with torch.no_grad():
             x = self.backbone.forward(image)
-            return F.interpolate(x,
-                                 size=image.size()[-2:],
-                                 mode='bilinear',
-                                 align_corners=True)
 
-    def compute_descriptors_and_keypoints_from_numpy_image(self, numpy_image: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
-        image_tensor = torch.as_tensor(numpy_image, device=self.device, dtype=self.dtype) / 255.0
-        image_tensor = image_tensor.permute(2, 0, 1).unsqueeze(dim=0)
-
-        if self.device != torch.device("cpu"):
-            image_tensor = image_tensor.pin_memory(True)
-
-        descriptors = self.mine_dense_local_descriptors(image_tensor)
-
-        with torch.no_grad():
-            _, keypoint_expectations, _ = self._forward(image_tensor)
-
-        return (keypoint_expectations.squeeze(dim=0).cpu().numpy(),
-                descriptors.squeeze(dim=0).permute(1, 2, 0).cpu().numpy())
+        return F.interpolate(x,
+                             size=image.size()[-2:],
+                             mode='bilinear',
+                             align_corners=True)
 
 
 def load_trained_don_model(yaml_config_path: str, trained_model_path: Union[str, None] = None) -> KeypointNetwork:

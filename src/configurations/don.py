@@ -16,10 +16,6 @@ class DON:
     def from_dictionary(cls, dictionary: Dict[str, Any]) -> DON:
         return cls(**dictionary)
 
-    def __post_init__(self):
-        if self.backbone not in ["resnet_18", "resnet_34", "resnet_50"]:
-            raise NotImplementedError(f"The specified backbone: {self.backbone} is not implemented")
-
 
 @dataclass
 class Loss:
@@ -32,8 +28,7 @@ class Loss:
         return cls(**dictionary)
 
     def __post_init__(self):
-        if self.name not in ["pixelwise_correspondence_loss",
-                             "pixelwise_ntxent_loss"]:
+        if self.name not in ["pixelwise_correspondence_loss", "pixelwise_ntxent_loss"]:
             raise NotImplementedError(f"The specified loss function: {self.name} is not implemented")
 
         if self.name == "pixelwise_ntxent_loss" and self.temperature is None:

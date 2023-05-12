@@ -17,9 +17,6 @@ class KeypointNet:
     def from_dictionary(cls, dictionary: Dict[str, Any]) -> KeypointNet:
         return cls(**dictionary)
 
-    def __post_init__(self):
-        if self.backbone not in ["resnet_18", "resnet_34", "resnet_50"]:
-            raise NotImplementedError(f"The specified backbone function: {self.backbone} is not implemented")
 
 
 @dataclass

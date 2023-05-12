@@ -57,15 +57,15 @@ class KeypointNetLosses:
     @staticmethod
     def _compute_pose_loss(uvs_a: torch.Tensor,
                            uvs_b: torch.Tensor,
-                           rotation_a_to_b: torch.Tensor) -> torch.Tensor:
+                           rotation_a_to_b: torch.Tensor,
+                           translation_a_to_b: torch.Tensor) -> torch.Tensor:
 
-        predicted_rotation, _ = kabsch_tranformation(uvs_a, uvs_b, noise=1e-2)
+        predicted_rotation, predicted_translation = kabsch_tranformation(uvs_a, uvs_b, noise=1e-3)
 
-        relative_rotation = rotation_a_to_b @ predicted_rotation.permute(0, 2, 1)
-        eye = torch.eye(2, device=relative_rotation.device).unsqueeze(0).tile(relative_rotation.shape[0], 1, 1)
-        rotation_distance = torch.linalg.norm(eye - relative_rotation, dim=(-2, -1))
+        rotation_distance = torch.linalg.matrix_norm(rotation_a_to_b - predicted_rotation, dim=(-2, -1), ord="fro")
+        translation_distance = torch.linalg.norm(translation_a_to_b - predicted_translation, dim=(-2, -1))
 
-        return rotation_distance
+        return rotation_distance + translation_distance
 
     @staticmethod
     def _compute_stable_log(x: torch.tensor) -> torch.Tensor:
@@ -101,7 +101,7 @@ class KeypointNetLosses:
 
         distances = torch.linalg.norm(tiled_grid - tiled_exp, dim=-1)
         mask: torch.Tensor = torch.where(distances > 2.0, 1.0, 0.0)
-        masked_distances = distances * mask
+        masked_distances = distances * mask.detach()
 
         return torch.mean(torch.sum(spat_probs * masked_distances, dim=(-2, -1)), dim=-1)
 
@@ -167,7 +167,8 @@ class KeypointNetLosses:
 
         pose_loss = self._compute_pose_loss(exp_uvs_a,
                                             exp_uvs_b,
-                                            optimal_rotation)
+                                            optimal_rotation,
+                                            optimal_translation)
 
         weighted_batch_loss = self._compute_weighted_losses(mvc_loss,
                                                             pose_loss,

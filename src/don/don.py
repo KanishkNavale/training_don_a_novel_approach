@@ -25,10 +25,18 @@ class DON(pl.LightningModule):
         self.debug = self.don_config.don.debug
         self.debug_path = self.don_config.don.debug_path
 
+        # Modified backbone to extract conv. features
         self.backbone = init_backbone(self.don_config.don.backbone)
-        self.backbone.fc = torch.nn.Conv2d(self.backbone.inplanes,
-                                           self.don_config.don.descriptor_dimension,
-                                           kernel_size=1)
+        self.backbone = torch.nn.Sequential(self.backbone.conv1,
+                                            self.backbone.bn1,
+                                            self.backbone.relu,
+                                            self.backbone.layer1,
+                                            self.backbone.layer2,
+                                            self.backbone.layer3,
+                                            self.backbone.layer4,
+                                            torch.nn.Conv2d(self.backbone.inplanes,
+                                                            self.don_config.don.descriptor_dimension,
+                                                            kernel_size=1))
 
         # Init. loss function
         if self.don_config.loss.name == 'pixelwise_correspondence_loss':
@@ -82,9 +90,7 @@ class DON(pl.LightningModule):
                                   matches_b)
 
         # Override to save the last debug for the last epoch
-        if (self.debug or
-            self.trainer.current_epoch == self.trainer.max_epochs - 1 or
-                self.trainer.current_epoch % 50 == 0):
+        if self.debug or self.trainer.current_epoch == self.trainer.max_epochs - 1 or self.trainer.validating:
             debug_correspondences(image_a,
                                   matches_a,
                                   image_b,

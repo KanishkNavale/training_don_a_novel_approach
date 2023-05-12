@@ -100,10 +100,10 @@ def AUC_for_PCK(trained_model: DON,
             backgrounds = backgrounds.to(device=device, non_blocking=True).unsqueeze(dim=0)
 
             # Synthetize a pair of images
-            image_a, matches_a, image_b, matches_b = synthetize(image,
-                                                                mask,
-                                                                backgrounds,
-                                                                n_correspondences)
+            image_a, matches_a, _, image_b, matches_b, _ = synthetize(image,
+                                                                      mask,
+                                                                      backgrounds,
+                                                                      n_correspondences)
 
             # Compute descriptors
             descriptor_a = trained_model.compute_dense_local_descriptors(image_a)

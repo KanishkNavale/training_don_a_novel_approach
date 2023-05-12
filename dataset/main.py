@@ -8,17 +8,10 @@ import pickle
 bproc.init()
 
 
-def generate_erode_mask(mask: np.ndarray):
-    kernel = np.ones((5, 5), np.uint8)
-    erode = cv2.erode(mask, kernel, cv2.BORDER_REFLECT)
-    mask = np.where(erode >= np.max(erode), 255, 0)
-    return mask
-
-
 if __name__ == "__main__":
 
     # Load object
-    objs = bproc.loader.load_obj("models/9c225cd8f50b7c353d9199581d0f4b4/models/model_normalized.obj")
+    objs = bproc.loader.load_obj("models/357c2a333ffefc3e90f80ab08ae6ce2/models/model_normalized.obj")
     object = objs[0]
     object.set_cp("category_id", 0)
     object.set_location([0.0, 0.0, 0.0])
@@ -36,41 +29,15 @@ if __name__ == "__main__":
                   [0.0, 637.0, 295],
                   [0.0, 0.0, 1.0]])
 
+    cam_pose = bproc.math.build_transformation_mat([0.1, 0.1, 2.5], [0, 0, 0])
+    bproc.camera.add_camera_pose(cam_pose)
     bproc.camera.set_intrinsics_from_K_matrix(K, 640, 480)
     bproc.renderer.enable_depth_output(activate_antialiasing=True)
 
     poi = bproc.object.compute_poi([object])
 
-    list_of_poses: List[np.ndarray] = []
-    for i in range(100):
-        # Move and place the camera
-        random_transformation = np.random.uniform([-0.1, -0.1, 2], [0.1, 0.1, 3])
-        random_rotation = np.random.uniform([0, 0, -np.pi / 3], [0, 0, np.pi / 3])
-
-        cam_pose = bproc.math.build_transformation_mat(random_transformation, random_rotation)
-        bproc.camera.add_camera_pose(cam_pose)
-
-        cam_pose = bproc.math.change_source_coordinate_frame_of_transformation_matrix(cam_pose, ["-Y", "X", "-Z"])
-
-        list_of_poses.append(cam_pose)
-
     data = bproc.renderer.render()
     data.update(bproc.renderer.render_segmap(map_by=["class", "instance", "name"]))
 
-    for i in range(100):
-        idx = np.random.randint(0, len(data) - 1)
-        next_idx = np.random.randint(0, len(data) - 1)
-
-        data_slice = {"rgb_a": data["colors"][idx],
-                      "depth_a": data["depth"][idx],
-                      "mask_a": generate_erode_mask(data["instance_segmaps"][idx]),
-                      "pose_a": list_of_poses[idx],
-                      "rgb_b": data["colors"][next_idx],
-                      "depth_b": data["depth"][next_idx],
-                      "mask_b": generate_erode_mask(data["instance_segmaps"][next_idx]),
-                      "pose_b": list_of_poses[next_idx],
-                      "intrinsics": K
-                      }
-
-        with open(f'dataset/{i+199}.pkl', 'wb') as f:
-            pickle.dump(data_slice, f)
+    cv2.imwrite("12_rgb.png", data["colors"][0])
+    cv2.imwrite("12_mask.png", data["instance_segmaps"][0] * 255)

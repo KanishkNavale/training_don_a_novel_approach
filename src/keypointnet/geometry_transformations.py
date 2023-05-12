@@ -3,26 +3,6 @@ from typing import Union
 import torch
 
 
-def pixel_to_camera_coordinates(uv: torch.Tensor,
-                                depth: torch.Tensor,
-                                intrinsic: torch.Tensor) -> torch.Tensor:
-    # Processing batch tensor computation
-    depth = depth.unsqueeze(dim=-1)
-    uv1 = torch.cat([uv, torch.ones_like(depth)], dim=-1)
-    uvz = torch.mul(uv1, depth)
-
-    coordinates: torch.Tensor = torch.linalg.inv(intrinsic.unsqueeze(dim=1)) @ uvz.unsqueeze(dim=-1)
-    return coordinates.squeeze(dim=-1)
-
-
-def camera_to_world_coordinates(cam_coords: torch.Tensor,
-                                extrinsic: torch.Tensor) -> torch.Tensor:
-    cam_coords = cam_coords.unsqueeze(dim=-1)
-    one_padded_cam_coords = torch.cat([cam_coords, torch.ones_like(cam_coords[:, :, :1])], dim=-2)
-    coordinates = (extrinsic.unsqueeze(dim=1) @ one_padded_cam_coords)[:, :, :3]
-    return coordinates.squeeze(dim=-1)
-
-
 def kabsch_tranformation(source: torch.Tensor,
                          target: torch.Tensor,
                          noise: Union[float, None] = None) -> torch.Tensor:
@@ -84,6 +64,12 @@ def kabsch_tranformation(source: torch.Tensor,
     rotation_source_to_target = V @ normalizer @ U.permute(0, 2, 1)
 
     translation_source_to_taget = centroid_target.mT - (rotation_source_to_target @ centroid_source.mT)
+
+    # Math check for projections
+    projected_source = (rotation_source_to_target @ source.permute(0, 2, 1) + translation_source_to_taget).permute(0, 2, 1)
+    distances: torch.Tensor = torch.mean(torch.linalg.norm(projected_source - target, dim=-1), dim=-1)
+    if distances.any() > 1.0:
+        raise ValueError("Could not compute affine transformation accurately.")
 
     if len(source.shape) == 2 and len(target.shape) == 2:
         return rotation_source_to_target.squeeze(dim=0), translation_source_to_taget.squeeze(dim=0)

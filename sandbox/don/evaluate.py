@@ -47,7 +47,9 @@ def plot_metric(pcks: List[np.ndarray], aucs: List[np.ndarray]) -> None:
 if __name__ == "__main__":
 
     # Init. Trained DON Model
-    trained_model = load_trained_don_model("sandbox/don/don-config.yaml")
+    # trained_model = load_trained_don_model("sandbox/don/don-config.yaml")
+    from src.don import DON
+    trained_model = DON("sandbox/don/don-config.yaml")
 
     # Init. Dataloader
     config = initialize_config_file("sandbox/don/don-config.yaml")
@@ -57,6 +59,6 @@ if __name__ == "__main__":
     PCKS, AUCS = AUC_for_PCK(trained_model,
                              dataloader,
                              iterations=10,
-                             n_correspondences=150)
+                             n_correspondences=125)
 
     plot_metric(PCKS, AUCS)
