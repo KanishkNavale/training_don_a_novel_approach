@@ -18,7 +18,6 @@ class KeypointNet:
         return cls(**dictionary)
 
 
-
 @dataclass
 class Loss:
     multiview_consistency: float
@@ -26,6 +25,7 @@ class Loss:
     separation: float
     silhouette: float
     pose: float
+    feature: float
 
     reduction: str
     margin: float
@@ -36,7 +36,8 @@ class Loss:
                                 self.pose,
                                 self.separation,
                                 self.silhouette,
-                                self.spatial_distribution])
+                                self.spatial_distribution,
+                                self.feature])
 
     @classmethod
     def from_dictionary(cls, dictionary: Dict[str, Any]) -> Loss:

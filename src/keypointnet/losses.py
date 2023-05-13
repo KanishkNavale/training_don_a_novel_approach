@@ -116,6 +116,20 @@ class KeypointNetLosses:
 
         return 0.5 * (var_a + var_b)
 
+    @staticmethod
+    def _compute_feature_loss(features_a: torch.Tensor,
+                              masks_a: torch.Tensor,
+                              features_b: torch.Tensor,
+                              masks_b: torch.Tensor) -> torch.Tensor:
+
+        inverted_masks_a = torch.where(masks_a == 0.0, 1.0, 0.0)
+        inverted_masks_b = torch.where(masks_a == 0.0, 1.0, 0.0)
+
+        masked_features_a = inverted_masks_a.unsqueeze(dim=1) * torch.where(features_a > 0, 1.0, 0.0)
+        masked_features_b = inverted_masks_b.unsqueeze(dim=1) * torch.where(features_b > 0, 1.0, 0.0)
+
+        return 0.5 * (torch.mean(masked_features_a, dim=(-3, -2, -1)) + torch.mean(masked_features_b, dim=(-3, -2, -1)))
+
     def _reduce(self, tensor: torch.Tensor) -> torch.Tensor:
         if self.config.reduction == "sum":
             return torch.sum(tensor)
@@ -127,18 +141,22 @@ class KeypointNetLosses:
                                  pose_loss: torch.Tensor,
                                  separation_loss: torch.Tensor,
                                  sihoutte_loss: torch.Tensor,
-                                 divergence_loss: torch.Tensor) -> torch.Tensor:
+                                 divergence_loss: torch.Tensor,
+                                 feature_loss: torch.Tensor) -> torch.Tensor:
 
         loss = torch.hstack([self._reduce(consistency_loss),
                              self._reduce(pose_loss),
                              self._reduce(separation_loss),
                              self._reduce(sihoutte_loss),
-                             self._reduce(divergence_loss)])
+                             self._reduce(divergence_loss),
+                             self._reduce(feature_loss)])
 
         return self.config.loss_ratios_as_tensor.type(loss.dtype).to(loss.device) * loss
 
-    def __call__(self, computed_data: Dict[str, torch.Tensor],) -> Dict[str, torch.Tensor]:
+    def __call__(self, computed_data: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
 
+        backbone_feats_a = computed_data["Backbone-Features-A"]
+        backbone_feats_b = computed_data["Backbone-Features-B"]
         spat_probs_a = computed_data["Spatial-Probs-A"]
         spat_probs_b = computed_data["Spatial-Probs-B"]
         exp_uvs_a = computed_data["Spatial-Expectations-A"]
@@ -147,6 +165,8 @@ class KeypointNetLosses:
         exp_mask_b = computed_data["Spatial-Masks-B"]
         optimal_rotation = computed_data["Optimal-Rotation-A2B"]
         optimal_translation = computed_data["Optimal-Translation-A2B"]
+        masks_a = computed_data["Masks-A"]
+        masks_b = computed_data["Masks-B"]
 
         mvc_loss = self._compute_multiview_consistency_loss(exp_uvs_a,
                                                             exp_uvs_b,
@@ -170,11 +190,17 @@ class KeypointNetLosses:
                                             optimal_rotation,
                                             optimal_translation)
 
+        feature_loss = self._compute_feature_loss(backbone_feats_a,
+                                                  masks_a,
+                                                  backbone_feats_b,
+                                                  masks_b)
+
         weighted_batch_loss = self._compute_weighted_losses(mvc_loss,
                                                             pose_loss,
                                                             sep_loss,
                                                             sil_loss,
-                                                            var_loss)
+                                                            var_loss,
+                                                            feature_loss,)
 
         return {"Total": torch.sum(weighted_batch_loss),
                 "Consistency": weighted_batch_loss[0],

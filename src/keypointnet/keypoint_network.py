@@ -39,7 +39,7 @@ class KeypointNetwork(pl.LightningModule):
                                             self.backbone.layer4,
                                             torch.nn.Conv2d(self.backbone.inplanes,
                                                             self.keypointnet_config.keypointnet.bottleneck_dimension,
-                                                            kernel_size=3))
+                                                            kernel_size=1))
 
         self.spatial_layer = torch.nn.Conv2d(self.keypointnet_config.keypointnet.bottleneck_dimension,
                                              self.keypointnet_config.keypointnet.n_keypoints,
@@ -81,11 +81,13 @@ class KeypointNetwork(pl.LightningModule):
 
     def _forward(self,
                  image: torch.Tensor,
-                 masks: Union[torch.Tensor, None]) -> Tuple[torch.Tensor, torch.Tensor, Union[torch.Tensor, None]]:
+                 masks: Union[torch.Tensor, None]) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, Union[torch.Tensor, None]]:
 
         backbone_features = self.backbone.forward(image)
         spatial_weights = self.spatial_layer.forward(backbone_features)
+
         spatial_weights = self._upsample(spatial_weights, image)
+        backbone_features = self._upsample(backbone_features, image)
 
         flat_weights = spatial_weights.reshape(spatial_weights.shape[0],
                                                spatial_weights.shape[1],
@@ -99,7 +101,7 @@ class KeypointNetwork(pl.LightningModule):
 
         exp_uvs, exp_mask = self._compute_spatial_expectations(masks, spatial_probs)
 
-        return spatial_probs, exp_uvs, exp_mask
+        return backbone_features, spatial_probs, exp_uvs, exp_mask
 
     def configure_optimizers(self):
 
@@ -121,7 +123,7 @@ class KeypointNetwork(pl.LightningModule):
             return optimizer
 
     def _step(self, batch: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
-        image, mask, backgrounds = batch["RGBs-A"], batch["Masks-A"], batch["Random-Backgrounds"]
+        image, mask, backgrounds = batch["RGBs"], batch["Masks"], batch["Random-Backgrounds"]
         images_a, matches_a, masks_a, images_b, matches_b, masks_b = sythetize(image,
                                                                                mask,
                                                                                backgrounds,
@@ -130,17 +132,21 @@ class KeypointNetwork(pl.LightningModule):
 
         optimal_rotation_a_to_b, optimal_translation_a_to_b = kabsch_tranformation(matches_a, matches_b)
 
-        spat_probs_a, exp_uv_a, exp_mask_a = self._forward(images_a, masks_a)
-        spat_probs_b, exp_uv_b, exp_mask_b = self._forward(images_b, masks_b)
+        features_a, spat_probs_a, exp_uv_a, exp_mask_a = self._forward(images_a, masks_a)
+        features_b, spat_probs_b, exp_uv_b, exp_mask_b = self._forward(images_b, masks_b)
 
-        computed_data = {"Spatial-Probs-A": spat_probs_a,
+        computed_data = {"Backbone-Features-A": features_a,
+                         "Backbone-Features-B": features_b,
+                         "Spatial-Probs-A": spat_probs_a,
                          "Spatial-Probs-B": spat_probs_b,
                          "Spatial-Expectations-A": exp_uv_a,
                          "Spatial-Expectations-B": exp_uv_b,
                          "Spatial-Masks-A": exp_mask_a,
                          "Spatial-Masks-B": exp_mask_b,
                          "Optimal-Rotation-A2B": optimal_rotation_a_to_b,
-                         "Optimal-Translation-A2B": optimal_translation_a_to_b}
+                         "Optimal-Translation-A2B": optimal_translation_a_to_b,
+                         "Masks-A": masks_a,
+                         "Masks-B": masks_b}
 
         if (self.debug or self.trainer.current_epoch == self.trainer.max_epochs - 1 or self.trainer.validating):
             debug_keypoints(images_a,
@@ -178,13 +184,10 @@ class KeypointNetwork(pl.LightningModule):
         with torch.no_grad():
             x = self.backbone.forward(image)
 
-        return F.interpolate(x,
-                             size=image.size()[-2:],
-                             mode='bilinear',
-                             align_corners=True)
+        return self._upsample(x, image)
 
 
-def load_trained_don_model(yaml_config_path: str, trained_model_path: Union[str, None] = None) -> KeypointNetwork:
+def load_trained_keypoint_model(yaml_config_path: str, trained_model_path: Union[str, None] = None) -> KeypointNetwork:
 
     if trained_model_path is None:
         config = initialize_config_file(yaml_config_path)

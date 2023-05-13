@@ -1,6 +1,6 @@
 keypointnet:
     n_keypoints: 8
-    bottleneck_dimension: 512
+    bottleneck_dimension: 64
     backbone: "resnet_34"
     debug: False
     debug_path: ""
@@ -11,6 +11,7 @@ loss:
     separation: 1.0
     silhouette: 1.0
     pose: 0.2
+    feature: 1.0
 
     reduction: "mean"
     margin: 2
@@ -36,14 +37,15 @@ trainer:
     validation_frequency: 10
 
 dataloader:
-    directory: dataset/dataset
-    depth_ratio: 1
+    rgb_directory: dataset/rgbs
+    mask_directory: dataset/masks
+    random_background_directory: dataset/random_backgrounds
 
-    test_size: 0.1
+    test_size: 0.2
     shuffle: True
 
-    n_workers: 60
-    batch_size: 8
+    n_workers: 4
+    batch_size: 1
 
     random_hintergrund_probability: 0.4
     noisy_hintergrund_probability: 0.4
@@ -52,3 +54,4 @@ dataloader:
     greyscale_probability: 0.1
     colorjitter_probability: 0.8
     gaussian_blur_probability: 0.1
+    
