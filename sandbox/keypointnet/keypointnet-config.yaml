@@ -26,13 +26,13 @@ optimizer:
 
 trainer:
     precision: high 
-    model_checkpoint_name: trained_keynet
+    model_checkpoint_name: trained_keynet_d64
     epochs: 2500
     enable_logging: True
     tensorboard_path: /tmp
     training_directory: /tmp
     enable_checkpointing: True
-    model_path: /tmp
+    model_path: ""
     logging_frequency: 1
     validation_frequency: 10
 
@@ -45,7 +45,7 @@ dataloader:
     shuffle: True
 
     n_workers: 4
-    batch_size: 1
+    batch_size: 2
 
     random_hintergrund_probability: 0.4
     noisy_hintergrund_probability: 0.4

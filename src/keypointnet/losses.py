@@ -62,7 +62,12 @@ class KeypointNetLosses:
 
         predicted_rotation, predicted_translation = kabsch_tranformation(uvs_a, uvs_b, noise=1e-3)
 
-        rotation_distance = torch.linalg.matrix_norm(rotation_a_to_b - predicted_rotation, dim=(-2, -1), ord="fro")
+        I = torch.eye(2, device=predicted_rotation.device, dtype=predicted_rotation.dtype)
+        I = I.unsqueeze(dim=0).tile(rotation_a_to_b.shape[0], 1, 1)
+
+        relative_rotation = rotation_a_to_b.permute(0, 2, 1) @ predicted_rotation
+
+        rotation_distance = torch.linalg.norm(I - relative_rotation, dim=(-2, -1))
         translation_distance = torch.linalg.norm(translation_a_to_b - predicted_translation, dim=(-2, -1))
 
         return rotation_distance + translation_distance
@@ -125,8 +130,8 @@ class KeypointNetLosses:
         inverted_masks_a = torch.where(masks_a == 0.0, 1.0, 0.0)
         inverted_masks_b = torch.where(masks_a == 0.0, 1.0, 0.0)
 
-        masked_features_a = inverted_masks_a.unsqueeze(dim=1) * torch.where(features_a > 0, 1.0, 0.0)
-        masked_features_b = inverted_masks_b.unsqueeze(dim=1) * torch.where(features_b > 0, 1.0, 0.0)
+        masked_features_a = inverted_masks_a.unsqueeze(dim=1) * torch.abs(features_a)
+        masked_features_b = inverted_masks_b.unsqueeze(dim=1) * torch.abs(features_b)
 
         return 0.5 * (torch.mean(masked_features_a, dim=(-3, -2, -1)) + torch.mean(masked_features_b, dim=(-3, -2, -1)))
 
@@ -208,4 +213,5 @@ class KeypointNetLosses:
                 "Separation": weighted_batch_loss[2],
                 "Silhoutte": weighted_batch_loss[3],
                 "Divergence": weighted_batch_loss[4],
+                "Feature": weighted_batch_loss[5]
                 }
