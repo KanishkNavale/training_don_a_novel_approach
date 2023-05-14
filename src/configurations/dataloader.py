@@ -8,6 +8,9 @@ import os
 class DataLoaderConfig:
     rgb_directory: str
     mask_directory: str
+    depth_directory: str
+    extrinsic_directory: str
+    camera_intrinsics_numpy_text: str
     random_background_directory: str
 
     test_size: float
@@ -31,6 +34,9 @@ class DataLoaderConfig:
     def __post_init__(self):
         self.rgb_directory = os.path.abspath(self.rgb_directory)
         self.mask_directory = os.path.abspath(self.mask_directory)
+        self.depth_directory = os.path.abspath(self.depth_directory)
+        self.extrinsic_directory = os.path.abspath(self.extrinsic_directory)
+        self.camera_intrinsics_numpy_text = os.path.abspath(self.camera_intrinsics_numpy_text)
         self.random_background_directory = os.path.abspath(self.random_background_directory)
 
         if self.random_hintergrund_probability + self.noisy_hintergrund_probability + self.masked_hintergrund_probability != 1.0:

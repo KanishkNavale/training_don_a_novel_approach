@@ -1,14 +1,15 @@
 import cv2
 
-from src.keypointnet import load_trained_don_model
+from src.keypointnet import load_trained_keypoint_model
 from src.inspector import DescritporInspectorApp
 
 if __name__ == "__main__":
-    image = cv2.imread("dataset/298_rgb.png")
-    trained_model = load_trained_don_model("sandbox/keypointnet/keypointnet-config.yaml",
-                                           "/home/kanishk/Desktop/trained_keynet.ckpt",)
+    image = cv2.imread("dataset/rgbs/01_rgb.png")
+    trained_model = load_trained_keypoint_model("sandbox/keypointnet/keypointnet-config.yaml",
+                                                "trained_keynet_d64.ckpt",)
+    
 
-    descriptors = trained_model.compute_dense_local_descriptors(image)
+    descriptors = trained_model.compute_descriptors_from_numpy_image(image)
 
     app = DescritporInspectorApp(rgb_a=image,
                                  rgb_b=image,

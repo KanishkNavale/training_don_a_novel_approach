@@ -1,8 +1,9 @@
 from __future__ import annotations
-from typing import Tuple, Dict, Union
+from typing import Any, Optional, Tuple, Union, Dict
 import os
 
 import numpy as np
+from pytorch_lightning.utilities.types import LRSchedulerTypeUnion
 import torch
 import torch.nn.functional as F
 import pytorch_lightning as pl
@@ -11,8 +12,6 @@ from src.configurations import OptimizerConfig, KeypointNetConfig
 from src.keypointnet.losses import KeypointNetLosses
 from src.utils import init_backbone, initialize_config_file
 from src.keypointnet.debug import debug_keypoints
-from src.don.synthetizer import augment_images_and_compute_correspondences as sythetize
-from src.keypointnet.geometry_transformations import kabsch_tranformation
 
 
 class KeypointNetwork(pl.LightningModule):
@@ -39,15 +38,21 @@ class KeypointNetwork(pl.LightningModule):
                                             self.backbone.layer4,
                                             torch.nn.Conv2d(self.backbone.inplanes,
                                                             self.keypointnet_config.keypointnet.bottleneck_dimension,
-                                                            kernel_size=1))
+                                                            kernel_size=1,
+                                                            bias=False))
 
         self.spatial_layer = torch.nn.Conv2d(self.keypointnet_config.keypointnet.bottleneck_dimension,
                                              self.keypointnet_config.keypointnet.n_keypoints,
-                                             kernel_size=1,
+                                             kernel_size=3,
                                              padding='same')
 
+        self.depth_layer = torch.nn.Conv2d(self.keypointnet_config.keypointnet.bottleneck_dimension,
+                                           self.keypointnet_config.keypointnet.n_keypoints,
+                                           kernel_size=3,
+                                           padding='same')
+
         # Init. Loss
-        self.loss_function = KeypointNetLosses(self.keypointnet_config.loss)
+        self.loss_function = KeypointNetLosses(self.keypointnet_config)
 
         # random colors for debugging
         self.colors = [(np.random.randint(0, 255),
@@ -55,53 +60,12 @@ class KeypointNetwork(pl.LightningModule):
                         np.random.randint(0, 255))
                        for _ in range(self.keypointnet_config.keypointnet.n_keypoints)]
 
-    @ staticmethod
-    def _compute_spatial_expectations(mask: Union[torch.Tensor, None],
-                                      spatial_probs: torch.Tensor) -> Tuple[torch.Tensor, Union[torch.Tensor, None]]:
-
-        us = torch.arange(0, mask.shape[-2], 1, dtype=torch.float32, device=mask.device)
-        vs = torch.arange(0, mask.shape[-1], 1, dtype=torch.float32, device=mask.device)
-        grid = torch.meshgrid(us, vs, indexing='ij')
-
-        exp_u = torch.sum(spatial_probs * grid[0], dim=(-2, -1))
-        exp_v = torch.sum(spatial_probs * grid[1], dim=(-2, -1))
-
-        if mask is not None:
-            exp_m = torch.sum(spatial_probs * mask.unsqueeze(dim=1), dim=(-2, -1))
-            return (torch.stack([exp_u, exp_v], dim=-1), exp_m)
-        else:
-            return (torch.stack([exp_u, exp_v], dim=-1), None)
-
     @staticmethod
     def _upsample(x: torch.Tensor, ref_x: torch.Tensor) -> torch.Tensor:
         return F.interpolate(x,
                              size=ref_x.size()[-2:],
                              mode='bilinear',
                              align_corners=True)
-
-    def _forward(self,
-                 image: torch.Tensor,
-                 masks: Union[torch.Tensor, None]) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, Union[torch.Tensor, None]]:
-
-        backbone_features = self.backbone.forward(image)
-        spatial_weights = self.spatial_layer.forward(backbone_features)
-
-        spatial_weights = self._upsample(spatial_weights, image)
-        backbone_features = self._upsample(backbone_features, image)
-
-        flat_weights = spatial_weights.reshape(spatial_weights.shape[0],
-                                               spatial_weights.shape[1],
-                                               spatial_weights.shape[2] * spatial_weights.shape[3])
-
-        flat_probs = F.softmax(flat_weights, dim=-1)
-        spatial_probs = flat_probs.reshape(flat_probs.shape[0],
-                                           flat_probs.shape[1],
-                                           image.shape[2],
-                                           image.shape[3])
-
-        exp_uvs, exp_mask = self._compute_spatial_expectations(masks, spatial_probs)
-
-        return backbone_features, spatial_probs, exp_uvs, exp_mask
 
     def configure_optimizers(self):
 
@@ -122,41 +86,77 @@ class KeypointNetwork(pl.LightningModule):
         else:
             return optimizer
 
+    def lr_scheduler_step(self, scheduler: LRSchedulerTypeUnion, optimizer_idx: int, metric: Any | None) -> None:
+        if self.optim_config.enable_schedule:
+            sch = self.lr_schedulers()
+            sch.step()
+
+    def _forward(self, input: torch.Tensor) -> torch.Tensor:
+        x = self.backbone.forward(input)
+        resized_x = self._upsample(x, input)
+
+        spatial_weights = self.spatial_layer.forward(resized_x)
+        flat_weights = spatial_weights.reshape(spatial_weights.shape[0],
+                                               spatial_weights.shape[1],
+                                               spatial_weights.shape[2] * spatial_weights.shape[3])
+
+        flat_probs = F.softmax(flat_weights, dim=-1)
+        spatial_probs = flat_probs.reshape(flat_probs.shape[0],
+                                           flat_probs.shape[1],
+                                           input.shape[2],
+                                           input.shape[3])
+
+        depth = self.depth_layer.forward(resized_x)
+
+        return spatial_probs, depth
+
+    @ staticmethod
+    def _compute_spatial_expectations(mask: Union[torch.Tensor, None],
+                                      spatial_probs: torch.Tensor) -> Tuple[torch.Tensor, Union[torch.Tensor, None]]:
+
+        us = torch.arange(0, spatial_probs.shape[-2], 1, dtype=torch.float32, device=spatial_probs.device)
+        vs = torch.arange(0, spatial_probs.shape[-1], 1, dtype=torch.float32, device=spatial_probs.device)
+        grid = torch.meshgrid(us, vs, indexing='ij')
+
+        exp_u = torch.sum(spatial_probs * grid[0], dim=(-2, -1))
+        exp_v = torch.sum(spatial_probs * grid[1], dim=(-2, -1))
+
+        if mask is not None:
+            exp_m = torch.sum(spatial_probs * mask.unsqueeze(dim=1), dim=(-2, -1))
+            return (torch.stack([exp_u, exp_v], dim=-1), exp_m)
+        else:
+            return (torch.stack([exp_u, exp_v], dim=-1), None)
+
     def _step(self, batch: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
-        image, mask, backgrounds = batch["RGBs"], batch["Masks"], batch["Random-Backgrounds"]
-        images_a, matches_a, masks_a, images_b, matches_b, masks_b = sythetize(image,
-                                                                               mask,
-                                                                               backgrounds,
-                                                                               n_correspondences=25,
-                                                                               enable_prespective_augmentation=False)
+        rgbs_a = batch["RGBs-A"]
+        rgbs_b = batch["RGBs-B"]
 
-        optimal_rotation_a_to_b, optimal_translation_a_to_b = kabsch_tranformation(matches_a, matches_b)
+        spat_exp_a, depth_a = self._forward(rgbs_a)
+        spat_exp_b, depth_b = self._forward(rgbs_b)
 
-        features_a, spat_probs_a, exp_uv_a, exp_mask_a = self._forward(images_a, masks_a)
-        features_b, spat_probs_b, exp_uv_b, exp_mask_b = self._forward(images_b, masks_b)
+        batch_loss = self.loss_function(depth_a,
+                                        depth_b,
+                                        batch["Intrinsics-A"],
+                                        batch["Intrinsics-B"],
+                                        batch["Extrinsics-A"],
+                                        batch["Extrinsics-B"],
+                                        batch["Masks-A"],
+                                        batch["Masks-B"],
+                                        spat_exp_a,
+                                        spat_exp_b)
 
-        computed_data = {"Backbone-Features-A": features_a,
-                         "Backbone-Features-B": features_b,
-                         "Spatial-Probs-A": spat_probs_a,
-                         "Spatial-Probs-B": spat_probs_b,
-                         "Spatial-Expectations-A": exp_uv_a,
-                         "Spatial-Expectations-B": exp_uv_b,
-                         "Spatial-Masks-A": exp_mask_a,
-                         "Spatial-Masks-B": exp_mask_b,
-                         "Optimal-Rotation-A2B": optimal_rotation_a_to_b,
-                         "Optimal-Translation-A2B": optimal_translation_a_to_b,
-                         "Masks-A": masks_a,
-                         "Masks-B": masks_b}
+        exp_uv_a, _ = self._compute_spatial_expectations(None, spat_exp_a)
+        exp_uv_b, _ = self._compute_spatial_expectations(None, spat_exp_b)
 
-        if (self.debug or self.trainer.current_epoch == self.trainer.max_epochs - 1 or self.trainer.validating):
-            debug_keypoints(images_a,
+        if (self.debug or self.trainer.current_epoch == self.trainer.max_epochs - 1):
+            debug_keypoints(rgbs_a,
                             exp_uv_a,
-                            images_b,
+                            rgbs_b,
                             exp_uv_b,
                             self.colors,
                             self.debug_path)
 
-        return self.loss_function(computed_data)
+        return batch_loss
 
     def detail_log(self, loss: Dict[str, torch.Tensor], placeholder_name: str):
         _loss = loss.copy()
@@ -183,7 +183,6 @@ class KeypointNetwork(pl.LightningModule):
     def compute_dense_local_descriptors(self, image: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
         with torch.no_grad():
             x = self.backbone.forward(image)
-
         return self._upsample(x, image)
 
 

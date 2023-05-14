@@ -1,2 +1,2 @@
-from src.keypointnet.keypoint_network import KeypointNetwork, load_trained_keypoint_model
+from src.keypointnet.keypoint_network import KeypointNetwork
 from src.keypointnet.losses import KeypointNetLosses

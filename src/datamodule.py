@@ -19,11 +19,17 @@ torch.multiprocessing.set_sharing_strategy('file_system')
 
 class Dataset(Dataset):
     def __init__(self,
-                 rgbs: List[str],
-                 masks: List[str],
+                 rgbs: List[torch.Tensor],
+                 depths: List[torch.Tensor],
+                 masks: List[torch.Tensor],
+                 extrinsics: List[torch.Tensor],
+                 intrinsic: torch.Tensor,
                  config: DataLoaderConfig) -> None:
         self.rgbs = rgbs
+        self.depths = depths
         self.masks = masks
+        self.extrinsics = extrinsics
+        self.intrinsics = [intrinsic] * self.__len__()
         self.config = config
         self.random_backgrounds = [os.path.join(self.config.random_background_directory, file)
                                    for file in os.listdir(self.config.random_background_directory)]
@@ -52,13 +58,15 @@ class Dataset(Dataset):
         masked_image = image * tiled_mask
 
         # Masked image
+        """
         if 0 == np.random.randint(0, self.masked_prob):
             background = torch.zeros_like(image)
 
             image = masked_image
+        """
 
         # Noisy background
-        elif 0 == np.random.randint(0, self.noisy_prob):
+        if 0 == np.random.randint(0, self.noisy_prob):
             background = torch.rand_like(image)
 
             random_image = torch.rand_like(masked_image)
@@ -94,20 +102,51 @@ class Dataset(Dataset):
 
     def __getitem__(self, idx: int) -> Dict[str, Any]:
 
-        rgb = cv2.imread(self.rgbs[idx])
-        mask = cv2.imread(self.masks[idx])[..., 0]
+        rgb_a = self.rgbs[idx]
+        depth_a = self.depths[idx]
+        mask_a = self.masks[idx]
+        extrinsic_a = self.extrinsics[idx]
+        intrinsic_a = self.intrinsics[idx]
 
-        rgb = torch.as_tensor(rgb / 255, dtype=torch.float32)
-        mask = torch.as_tensor(mask / 255, dtype=torch.float32)
+        next_idx = random.randint(0, self.__len__() - 1)
+
+        rgb_b = self.rgbs[next_idx]
+        depth_b = self.depths[next_idx]
+        mask_b = self.masks[next_idx]
+        extrinsic_b = self.extrinsics[next_idx]
+        intrinsic_b = self.intrinsics[next_idx]
+
+        rgb_a = torch.as_tensor(cv2.imread(rgb_a) / 255, dtype=torch.float32)
+        depth_a = torch.as_tensor(np.load(depth_a, allow_pickle=False), dtype=torch.float32)
+        mask_a = torch.as_tensor(cv2.imread(mask_a) / 255, dtype=torch.float32)[..., 0]
+        extrinsic_a = torch.as_tensor(np.loadtxt(extrinsic_a), dtype=torch.float32)
+        intrinsic_a = torch.as_tensor(intrinsic_a, dtype=torch.float32)
+
+        rgb_b = torch.as_tensor(cv2.imread(rgb_b) / 255, dtype=torch.float32)
+        depth_b = torch.as_tensor(np.load(depth_b, allow_pickle=False), dtype=torch.float32)
+        mask_b = torch.as_tensor(cv2.imread(mask_b) / 255, dtype=torch.float32)[..., 0]
+        extrinsic_b = torch.as_tensor(np.loadtxt(extrinsic_b), dtype=torch.float32)
+        intrinsic_b = torch.as_tensor(intrinsic_b, dtype=torch.float32)
 
         # Load a random background
         background = cv2.imread(random.choice(self.random_backgrounds)) / 255
-        background = cv2.resize(background, (rgb.shape[1], rgb.shape[0]))
-        background = torch.as_tensor(background, dtype=rgb.dtype)
+        background = cv2.resize(background, (rgb_a.shape[1], rgb_a.shape[0]))
+        background = torch.as_tensor(background, dtype=rgb_a.dtype)
+
+        rgb_a, _ = self._augment_image(rgb_a, mask_a, background)
+        rgb_b, _ = self._augment_image(rgb_b, mask_b, background)
 
         return {
-            "RGBs": rgb.permute(2, 0, 1),
-            "Masks": mask,
+            "RGBs-A": rgb_a.permute(2, 0, 1),
+            "RGBs-B": rgb_b.permute(2, 0, 1),
+            "Depths-A": depth_a,
+            "Depths-B": depth_b,
+            "Intrinsics-A": intrinsic_a,
+            "Intrinsics-B": intrinsic_b,
+            "Extrinsics-A": extrinsic_a,
+            "Extrinsics-B": extrinsic_b,
+            "Masks-A": mask_a,
+            "Masks-B": mask_b,
             "Random-Backgrounds": background.permute(2, 0, 1)
         }
 
@@ -124,28 +163,59 @@ class DataModule(pl.LightningDataModule):
 
     def prepare_data(self) -> None:
         # Reading RGBD data
-        self.rgbs = sorted([os.path.join(self.config.rgb_directory, file) for file in os.listdir(self.config.rgb_directory)])
-        self.masks = sorted([os.path.join(self.config.mask_directory, file) for file in os.listdir(self.config.mask_directory)])
+        # Reading RGBD data
+        rgb_directory = self.config.rgb_directory
+        depth_directory = self.config.depth_directory
+        masks_directory = self.config.mask_directory
+        extrinsic_directory = self.config.extrinsic_directory
+        self.intrinsic_matrix = np.loadtxt(self.config.camera_intrinsics_numpy_text)
+
+        self.rgb_files = sorted([os.path.join(rgb_directory, file) for file in os.listdir(rgb_directory)])
+        self.depth_files = sorted([os.path.join(depth_directory, file) for file in os.listdir(depth_directory)])
+        self.mask_files = sorted([os.path.join(masks_directory, file) for file in os.listdir(masks_directory)])
+        self.extrinsic_files = sorted([os.path.join(extrinsic_directory, file) for file in os.listdir(extrinsic_directory)])
 
     def setup(self, stage: str = None):
         # Create training, validation datasplits
-        (train_rgs, val_rgbs, train_masks, val_masks) = train_test_split(self.rgbs,
-                                                                         self.masks,
-                                                                         shuffle=self.config.shuffle,
-                                                                         test_size=self.config.test_size)
+        (train_rgbs,
+         val_rgbs,
+         train_depths,
+         val_depths,
+         train_masks,
+         val_masks,
+         train_extrinsics,
+         val_extrinsics) = train_test_split(self.rgb_files,
+                                            self.depth_files,
+                                            self.mask_files,
+                                            self.extrinsic_files,
+                                            shuffle=self.config.shuffle,
+                                            test_size=self.config.test_size)
 
         if stage == 'fit':
-            self.training_dataset = Dataset(train_rgs, train_masks, self.config)
-            self.validation_dataset = Dataset(val_rgbs, val_masks, self.config)
+            self.training_dataset = Dataset(train_rgbs,
+                                            train_depths,
+                                            train_masks,
+                                            train_extrinsics,
+                                            self.intrinsic_matrix,
+                                            self.config)
+
+            self.validation_dataset = Dataset(val_rgbs,
+                                              val_depths,
+                                              val_masks,
+                                              val_extrinsics,
+                                              self.intrinsic_matrix,
+                                              self.config)
 
     def train_dataloader(self):
         return DataLoader(self.training_dataset,
                           num_workers=self.config.n_workers,
                           batch_size=self.config.batch_size,
-                          pin_memory=True)
+                          pin_memory=True,
+                          shuffle=self.config.shuffle)
 
-    def val_dataloader(self, batch_size: int = None):
+    def val_dataloader(self):
         return DataLoader(self.validation_dataset,
                           num_workers=self.config.n_workers,
-                          batch_size=self.config.batch_size if batch_size is None else batch_size,
-                          pin_memory=True)
+                          batch_size=self.config.batch_size,
+                          pin_memory=True,
+                          shuffle=self.config.shuffle)

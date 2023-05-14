@@ -44,7 +44,7 @@ def _destack_image_mask_spatialgrid(augmented_image: torch.Tensor) -> Tuple[torc
 
 def _get_random_augmentation(image: torch.Tensor, enable_prespective: bool = True) -> torch.Tensor:
     if 0 == np.random.randint(0, 2):
-        return T.RandomAffine(degrees=90, translate=(0, 0.3))(image)
+        return T.RandomAffine(degrees=90, translate=(0, 0.1))(image)
 
     if 0 == np.random.randint(0, 2) and enable_prespective:
         return T.RandomPerspective(distortion_scale=0.5, p=1.0)(image)
@@ -65,7 +65,7 @@ def augment_images_and_compute_correspondences(
     else:
         augmented_images = images
 
-    augmented_image_a = _get_random_augmentation(_stack_image_with_mask_and_grid(images, masks),
+    augmented_image_a = _get_random_augmentation(_stack_image_with_mask_and_grid(augmented_images, masks),
                                                  enable_prespective_augmentation)
     augmented_image_b = _get_random_augmentation(_stack_image_with_mask_and_grid(augmented_images, masks),
                                                  enable_prespective_augmentation)

@@ -1,217 +1,260 @@
-from typing import Dict
+from typing import Tuple, List, Dict
 
 import torch
+from kornia.geometry.linalg import relative_transformation
 
-from src.keypointnet.geometry_transformations import kabsch_tranformation
-from src.configurations.keypointnet import Loss
+from src.configurations.keypointnet import KeypointNetConfig
 
 
 class KeypointNetLosses:
-    def __init__(self, loss_config: Loss) -> None:
+    def __init__(self, config: KeypointNetConfig) -> None:
+        self.name = 'Keypoint Network Losses'
 
         # Init. configuration
-        self.reduction = loss_config.reduction
-        self.config = loss_config
+        self.reduction = config.loss.reduction
+        self.config = config.loss
 
     @staticmethod
-    def _compute_multiview_consistency_loss(uvs_a: torch.Tensor,
-                                            uvs_b: torch.Tensor,
-                                            rotation_a_to_b: torch.Tensor,
-                                            translation_a_to_b: torch.Tensor) -> torch.Tensor:
+    def _compute_spatial_expectations(depth: torch.Tensor,
+                                      mask: torch.Tensor,
+                                      spatial_probs: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
 
-        projected_uvs_a_to_uvs_b = (rotation_a_to_b @ uvs_a.permute(0, 2, 1) + translation_a_to_b).permute(0, 2, 1)
+        us = torch.arange(0, depth.shape[-2], 1, dtype=torch.float32, device=depth.device)
+        vs = torch.arange(0, depth.shape[-1], 1, dtype=torch.float32, device=depth.device)
+        grid = torch.meshgrid(us, vs, indexing='ij')
 
-        return torch.mean(torch.linalg.norm(uvs_b - projected_uvs_a_to_uvs_b, dim=-1), dim=-1)
+        number_of_keypoints = spatial_probs.shape[0]
 
-    @staticmethod
-    def _compute_pointwise_distances(points: torch.Tensor) -> torch.Tensor:
+        exp_u = torch.sum(spatial_probs * grid[0].unsqueeze(dim=0).tile(number_of_keypoints, 1, 1), dim=(-2, -1))
+        exp_v = torch.sum(spatial_probs * grid[1].unsqueeze(dim=0).tile(number_of_keypoints, 1, 1), dim=(-2, -1))
+        exp_d = torch.sum(spatial_probs * depth, dim=(-2, -1))
+        exp_m = torch.sum(spatial_probs * mask, dim=(-2, -1))
 
-        mask = torch.triu(torch.ones((points.shape[1], points.shape[1]), dtype=torch.bool, device=points.device),
-                          diagonal=1).unsqueeze(0).tile(points.shape[0], 1, 1)
-
-        splicing_indices = torch.triu_indices(points.shape[1], points.shape[1], offset=1, device=points.device)
-        splicing_indices = splicing_indices.permute(1, 0)
-
-        masked_pointwise_distances = torch.cdist(points, points) * mask
-
-        return masked_pointwise_distances[:, splicing_indices[:, 0], splicing_indices[:, 1]]
+        return exp_u, exp_v, (exp_d + 1e-12), exp_m
 
     @staticmethod
-    def kernel_distance(x: torch.Tensor, margin: float) -> torch.Tensor:
-        cutoff = torch.max(torch.zeros_like(x), margin - x)
-        return torch.mean(cutoff, dim=-1)
+    def _batch_convert_image_to_camera_coordinates(u: torch.Tensor,
+                                                   v: torch.Tensor,
+                                                   d: torch.Tensor,
+                                                   intrinsic: torch.Tensor) -> torch.Tensor:
+        du = u * d
+        dv = v * d
+        uvd = torch.stack([du, dv, d]).permute(1, 0).unsqueeze(dim=-1)
+        intrinsic = intrinsic.unsqueeze(dim=0).tile(u.shape[0], 1, 1)
+        return torch.bmm(torch.linalg.inv(intrinsic), uvd)
+
+    def _compute_multiview_consistency_loss(self,
+                                            cam_coords_a: torch.Tensor,
+                                            extrinsic_a: torch.Tensor,
+                                            cam_coords_b: torch.Tensor,
+                                            extrinsic_b: torch.Tensor) -> torch.Tensor:
+
+        one_padded_cam_coords_a = torch.hstack([cam_coords_a.squeeze(dim=-1),
+                                                torch.ones_like(cam_coords_a.squeeze(dim=-1)[:, :1])]).unsqueeze(dim=-1)
+        one_padded_cam_coords_b = torch.hstack([cam_coords_b.squeeze(dim=-1),
+                                                torch.ones_like(cam_coords_b.squeeze(dim=-1)[:, :1])]).unsqueeze(dim=-1)
+
+        tiled_extrinsics_a = extrinsic_a.unsqueeze(dim=0).tile(cam_coords_a.shape[0], 1, 1)
+        tiled_extrinsics_b = extrinsic_b.unsqueeze(dim=0).tile(cam_coords_b.shape[0], 1, 1)
+
+        world_coords_a = torch.bmm(tiled_extrinsics_a, one_padded_cam_coords_a)
+        world_coords_b = torch.bmm(tiled_extrinsics_b, one_padded_cam_coords_b)
+
+        return torch.dist(world_coords_a, world_coords_b)
+
+    @staticmethod
+    def _margin_loss(matrix: torch.Tensor, margin: float) -> torch.Tensor:
+
+        intra_distance = torch.cdist(matrix.squeeze(dim=-1), matrix.squeeze(dim=-1))
+
+        upper_triangle_indices_x, upper_triangle_indices_y = torch.triu_indices(intra_distance.shape[0], intra_distance.shape[1], offset=1)
+        upper_triangle_matrix = intra_distance[upper_triangle_indices_x, upper_triangle_indices_y]
+
+        min_distance = torch.min(upper_triangle_matrix)
+        hinge = torch.max(torch.zeros_like(min_distance), margin - min_distance)
+
+        return torch.mean(hinge)
 
     def _compute_separation_loss(self,
-                                 uv_a: torch.Tensor,
-                                 uv_b: torch.Tensor,
-                                 margin: float) -> torch.Tensor:
+                                 points_a: torch.Tensor,
+                                 points_b: torch.Tensor) -> torch.Tensor:
 
-        pointwise_distances_a = self._compute_pointwise_distances(uv_a)
-        pointwise_distances_b = self._compute_pointwise_distances(uv_b)
+        return 0.5 * (self._margin_loss(points_a, self.config.margin) + self._margin_loss(points_b, self.config.margin))
 
-        kernel_distance_a = self.kernel_distance(pointwise_distances_a, margin)
-        kernel_distance_b = self.kernel_distance(pointwise_distances_b, margin)
-
-        return 0.5 * (kernel_distance_a + kernel_distance_b)
+    def _compute_silhoutte_loss(self,
+                                exp_mask_a: torch.Tensor,
+                                exp_mask_b: torch.Tensor) -> torch.Tensor:
+        return 0.5 * (torch.mean(-torch.log(exp_mask_a + 1e-12)) + torch.mean(-torch.log(exp_mask_b + 1e-12)))
 
     @staticmethod
-    def _compute_pose_loss(uvs_a: torch.Tensor,
-                           uvs_b: torch.Tensor,
-                           rotation_a_to_b: torch.Tensor,
-                           translation_a_to_b: torch.Tensor) -> torch.Tensor:
+    def _variance_expectation(exp_pixel: torch.Tensor,
+                              spatial_probs: torch.Tensor) -> torch.Tensor:
 
-        predicted_rotation, predicted_translation = kabsch_tranformation(uvs_a, uvs_b, noise=1e-3)
+        us = torch.arange(0, spatial_probs.shape[-2], 1, dtype=torch.float32, device=spatial_probs.device)
+        vs = torch.arange(0, spatial_probs.shape[-1], 1, dtype=torch.float32, device=spatial_probs.device)
+        grid = torch.meshgrid(us, vs, indexing='ij')
 
-        I = torch.eye(2, device=predicted_rotation.device, dtype=predicted_rotation.dtype)
-        I = I.unsqueeze(dim=0).tile(rotation_a_to_b.shape[0], 1, 1)
+        spatial_grid = torch.cat([grid[0].unsqueeze(-1), grid[0].unsqueeze(-1)], dim=-1)
 
-        relative_rotation = rotation_a_to_b.permute(0, 2, 1) @ predicted_rotation
+        tiled_spatial_grid = spatial_grid.unsqueeze(dim=0).tile(exp_pixel.shape[0], 1, 1, 1)
+        tiled_exp_pixel = exp_pixel.view(exp_pixel.shape[0], 1, 1, exp_pixel.shape[1])
 
-        rotation_distance = torch.linalg.norm(I - relative_rotation, dim=(-2, -1))
-        translation_distance = torch.linalg.norm(translation_a_to_b - predicted_translation, dim=(-2, -1))
+        distances_summed = (torch.linalg.norm(tiled_spatial_grid - tiled_exp_pixel, dim=-1))
 
-        return rotation_distance + translation_distance
+        probability_weights = torch.sum(spatial_probs * distances_summed, dim=(-2, -1))
 
-    @staticmethod
-    def _compute_stable_log(x: torch.tensor) -> torch.Tensor:
-        clipped_x = torch.clamp(x, min=1e-16, max=1.0)
-        return torch.abs(torch.log(clipped_x))
-
-    def _compute_silhoutte_loss(self, exp_mask_a: torch.Tensor, exp_mask_b: torch.Tensor) -> torch.Tensor:
-        logged_exp_a = self._compute_stable_log(exp_mask_a)
-        logged_exp_b = self._compute_stable_log(exp_mask_b)
-
-        return 0.5 * (logged_exp_a.mean(dim=-1) + logged_exp_b.mean(dim=-1))
-
-    @staticmethod
-    def _penalize_broad_probs(spat_probs: torch.Tensor, spat_exp: torch.Tensor) -> torch.Tensor:
-
-        us = torch.arange(0,
-                          spat_probs.shape[-2],
-                          1,
-                          dtype=torch.float32,
-                          device=spat_probs.device)
-        vs = torch.arange(0,
-                          spat_probs.shape[-1],
-                          1,
-                          dtype=torch.float32,
-                          device=spat_probs.device)
-
-        grid = torch.stack(torch.meshgrid(us, vs, indexing='ij'), dim=-1)
-
-        tiled_grid = grid[None, None, :].tile(spat_probs.shape[0],
-                                              spat_exp.shape[1],
-                                              1, 1, 1)
-        tiled_exp = spat_exp[:, :, None, None, :]
-
-        distances = torch.linalg.norm(tiled_grid - tiled_exp, dim=-1)
-        mask: torch.Tensor = torch.where(distances > 2.0, 1.0, 0.0)
-        masked_distances = distances * mask.detach()
-
-        return torch.mean(torch.sum(spat_probs * masked_distances, dim=(-2, -1)), dim=-1)
+        return torch.mean(probability_weights)
 
     def _compute_variance_loss(self,
-                               uv_a: torch.Tensor,
-                               spat_probs_a: torch.Tensor,
-                               uv_b: torch.Tensor,
-                               spat_probs_b: torch.Tensor) -> torch.Tensor:
+                               exp_uv_a: torch.Tensor,
+                               spatial_exp_a: torch.Tensor,
+                               exp_uv_b: torch.Tensor,
+                               spatial_exp_b: torch.Tensor) -> torch.Tensor:
+        return 0.5 * (self._variance_expectation(exp_uv_a, spatial_exp_a) + self._variance_expectation(exp_uv_b, spatial_exp_b))
 
-        var_a = self._penalize_broad_probs(spat_probs_a, uv_a)
-        var_b = self._penalize_broad_probs(spat_probs_b, uv_b)
+    @ staticmethod
+    def _geodesic_distance(rotation_matrix_a: torch.Tensor,
+                           rotation_matrix_b: torch.Tensor) -> torch.Tensor:
 
-        return 0.5 * (var_a + var_b)
+        matrix = rotation_matrix_a @ rotation_matrix_b.T
+        identity = torch.eye(matrix.shape[-1], dtype=matrix.dtype, device=matrix.device)
 
-    @staticmethod
-    def _compute_feature_loss(features_a: torch.Tensor,
-                              masks_a: torch.Tensor,
-                              features_b: torch.Tensor,
-                              masks_b: torch.Tensor) -> torch.Tensor:
+        return 0.5 * torch.linalg.norm(identity - matrix)
 
-        inverted_masks_a = torch.where(masks_a == 0.0, 1.0, 0.0)
-        inverted_masks_b = torch.where(masks_a == 0.0, 1.0, 0.0)
+    def _compute_relative_pose_loss(self,
+                                    cam_coords_a: torch.Tensor,
+                                    extrinsic_a: torch.Tensor,
+                                    cam_coords_b: torch.Tensor,
+                                    extrinsic_b,
+                                    noise_std: float = 0.1) -> torch.Tensor:
 
-        masked_features_a = inverted_masks_a.unsqueeze(dim=1) * torch.abs(features_a)
-        masked_features_b = inverted_masks_b.unsqueeze(dim=1) * torch.abs(features_b)
+        # Groundtruth transformations
+        trafo_a_to_b = relative_transformation(extrinsic_a, extrinsic_b)
+        trafo_b_to_a = relative_transformation(extrinsic_b, extrinsic_a)
 
-        return 0.5 * (torch.mean(masked_features_a, dim=(-3, -2, -1)) + torch.mean(masked_features_b, dim=(-3, -2, -1)))
+        rot_trafo_a_to_b = trafo_a_to_b[:3, :3]
+        rot_trafo_b_to_a = trafo_b_to_a[:3, :3]
 
-    def _reduce(self, tensor: torch.Tensor) -> torch.Tensor:
-        if self.config.reduction == "sum":
-            return torch.sum(tensor)
-        else:
-            return torch.mean(tensor)
+        # Adding noise for robustness
+        cam_coords_a += torch.normal(0.0, noise_std, size=cam_coords_a.size(), device=cam_coords_a.device, dtype=cam_coords_a.dtype)
+        cam_coords_b += torch.normal(0.0, noise_std, size=cam_coords_b.size(), device=cam_coords_b.device, dtype=cam_coords_b.dtype)
+
+        # Cam coord centers
+        cam_coord_center_a = torch.mean(cam_coords_a, dim=0)
+        cam_coord_center_b = torch.mean(cam_coords_b, dim=0)
+
+        # Zero center the coordinates
+        centered_coords_a = cam_coords_a - cam_coord_center_a
+        centered_coords_b = cam_coords_b - cam_coord_center_b
+
+        # Covariance matrices
+        cov_a = (centered_coords_a.T @ centered_coords_b)
+        cov_b = (centered_coords_b.T @ centered_coords_a)
+
+        # SVD decomposition
+        ua, _, vt_a = torch.linalg.svd(cov_a)
+        ub, _, vt_b = torch.linalg.svd(cov_b)
+
+        # Handling reflection case
+        identity_matrix_a = identity_matrix_b = torch.eye(3, dtype=cam_coords_a.dtype, device=cam_coords_a.device)
+        identity_matrix_a[-1, -1] = torch.linalg.det(vt_a.T @ ua.T)
+        normalizer_a = identity_matrix_a
+        identity_matrix_b[-1, -1] = torch.linalg.det(vt_b.T @ ub.T)
+        normalizer_b = identity_matrix_b
+
+        # Computed predicted transformation
+        predicted_rot_a_to_b = vt_a.T @ normalizer_a @ ua.T
+        predicted_rot_b_to_a = vt_b.T @ normalizer_b @ ub.T
+
+        # Compute loss
+        rotation_loss = 0.5 * (self._geodesic_distance(rot_trafo_a_to_b, predicted_rot_a_to_b) + self._geodesic_distance(rot_trafo_b_to_a, predicted_rot_b_to_a))
+
+        return rotation_loss
+
+    def _reduce_list(self, list_of_tensors: List[torch.Tensor]) -> torch.Tensor:
+        return torch.sum(torch.vstack(list_of_tensors)) if self.config.reduction == "sum" else torch.mean(torch.vstack(list_of_tensors))
 
     def _compute_weighted_losses(self,
-                                 consistency_loss: torch.Tensor,
-                                 pose_loss: torch.Tensor,
-                                 separation_loss: torch.Tensor,
-                                 sihoutte_loss: torch.Tensor,
-                                 divergence_loss: torch.Tensor,
-                                 feature_loss: torch.Tensor) -> torch.Tensor:
+                                 consistency_loss: List[torch.Tensor],
+                                 pose_loss: List[torch.Tensor],
+                                 separation_loss: List[torch.Tensor],
+                                 sihoutte_loss: List[torch.Tensor]) -> torch.Tensor:
 
-        loss = torch.hstack([self._reduce(consistency_loss),
-                             self._reduce(pose_loss),
-                             self._reduce(separation_loss),
-                             self._reduce(sihoutte_loss),
-                             self._reduce(divergence_loss),
-                             self._reduce(feature_loss)])
+        loss = torch.hstack([self._reduce_list(consistency_loss),
+                             self._reduce_list(pose_loss),
+                             self._reduce_list(separation_loss),
+                             self._reduce_list(sihoutte_loss)])
 
         return self.config.loss_ratios_as_tensor.type(loss.dtype).to(loss.device) * loss
 
-    def __call__(self, computed_data: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
+    def __call__(self,
+                 depths_a: torch.Tensor,
+                 depths_b: torch.Tensor,
+                 intrinsics_a: torch.Tensor,
+                 intrinsics_b: torch.Tensor,
+                 extrinsics_a: torch.Tensor,
+                 extrinsics_b: torch.Tensor,
+                 masks_a: torch.Tensor,
+                 masks_b: torch.Tensor,
+                 spatial_probs_a: torch.Tensor,
+                 spatial_probs_b: torch.Tensor) -> Dict[str, torch.Tensor]:
 
-        backbone_feats_a = computed_data["Backbone-Features-A"]
-        backbone_feats_b = computed_data["Backbone-Features-B"]
-        spat_probs_a = computed_data["Spatial-Probs-A"]
-        spat_probs_b = computed_data["Spatial-Probs-B"]
-        exp_uvs_a = computed_data["Spatial-Expectations-A"]
-        exp_uvs_b = computed_data["Spatial-Expectations-B"]
-        exp_mask_a = computed_data["Spatial-Masks-A"]
-        exp_mask_b = computed_data["Spatial-Masks-B"]
-        optimal_rotation = computed_data["Optimal-Rotation-A2B"]
-        optimal_translation = computed_data["Optimal-Translation-A2B"]
-        masks_a = computed_data["Masks-A"]
-        masks_b = computed_data["Masks-B"]
+        consistency_loss: List[torch.Tensor] = []
+        separation_loss: List[torch.Tensor] = []
+        # variance_loss: List[torch.Tensor] = []
+        pose_loss: List[torch.Tensor] = []
+        silhoutte_loss: List[torch.Tensor] = []
 
-        mvc_loss = self._compute_multiview_consistency_loss(exp_uvs_a,
-                                                            exp_uvs_b,
-                                                            optimal_rotation,
-                                                            optimal_translation)
+        for (depth_a,
+             depth_b,
+             intrinsic_a,
+             intrinsic_b,
+             extrinsic_a,
+             extrinsic_b,
+             mask_a,
+             mask_b,
+             spatial_prob_a,
+             spatial_prob_b) in zip(depths_a,
+                                    depths_b,
+                                    intrinsics_a,
+                                    intrinsics_b,
+                                    extrinsics_a,
+                                    extrinsics_b,
+                                    masks_a,
+                                    masks_b,
+                                    spatial_probs_a,
+                                    spatial_probs_b):
 
-        var_loss = self._compute_variance_loss(exp_uvs_a,
-                                               spat_probs_a,
-                                               exp_uvs_b,
-                                               spat_probs_b)
+            exp_ua, exp_va, exp_da, exp_ma = self._compute_spatial_expectations(depth_a, mask_a, spatial_prob_a)
+            exp_ub, exp_vb, exp_db, exp_mb = self._compute_spatial_expectations(depth_b, mask_b, spatial_prob_b)
 
-        sep_loss = self._compute_separation_loss(exp_uvs_a,
-                                                 exp_uvs_b,
-                                                 self.config.margin)
+            cam_coords_a = self._batch_convert_image_to_camera_coordinates(exp_ua, exp_va, exp_da, intrinsic_a)
+            cam_coords_b = self._batch_convert_image_to_camera_coordinates(exp_ub, exp_vb, exp_db, intrinsic_b)
 
-        sil_loss = self._compute_silhoutte_loss(exp_mask_a,
-                                                exp_mask_b)
+            consistency_loss.append(self._compute_multiview_consistency_loss(cam_coords_a,
+                                                                             extrinsic_a,
+                                                                             cam_coords_b,
+                                                                             extrinsic_b))
 
-        pose_loss = self._compute_pose_loss(exp_uvs_a,
-                                            exp_uvs_b,
-                                            optimal_rotation,
-                                            optimal_translation)
+            separation_loss.append(self._compute_separation_loss(torch.vstack([exp_ua, exp_va]).permute(1, 0),
+                                                                 torch.vstack([exp_ub, exp_vb]).permute(1, 0)))
 
-        feature_loss = self._compute_feature_loss(backbone_feats_a,
-                                                  masks_a,
-                                                  backbone_feats_b,
-                                                  masks_b)
+            silhoutte_loss.append(self._compute_silhoutte_loss(exp_ma, exp_mb))
 
-        weighted_batch_loss = self._compute_weighted_losses(mvc_loss,
+            pose_loss.append(self._compute_relative_pose_loss(cam_coords_a.squeeze(dim=-1),
+                                                              extrinsic_a,
+                                                              cam_coords_b.squeeze(dim=-1),
+                                                              extrinsic_b))
+
+        weighted_batch_loss = self._compute_weighted_losses(consistency_loss,
                                                             pose_loss,
-                                                            sep_loss,
-                                                            sil_loss,
-                                                            var_loss,
-                                                            feature_loss,)
+                                                            separation_loss,
+                                                            silhoutte_loss)
 
         return {"Total": torch.sum(weighted_batch_loss),
                 "Consistency": weighted_batch_loss[0],
-                "Pose": weighted_batch_loss[1],
+                "Relative Pose": weighted_batch_loss[1],
                 "Separation": weighted_batch_loss[2],
                 "Silhoutte": weighted_batch_loss[3],
-                "Divergence": weighted_batch_loss[4],
-                "Feature": weighted_batch_loss[5]
+                # "Variance": weighted_batch_loss[4],
                 }

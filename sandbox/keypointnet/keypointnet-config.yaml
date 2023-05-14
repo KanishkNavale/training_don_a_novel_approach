@@ -1,27 +1,25 @@
 keypointnet:
     n_keypoints: 8
-    bottleneck_dimension: 64
+    bottleneck_dimension: 128
     backbone: "resnet_34"
-    debug: False
+    debug: True
     debug_path: ""
 
 loss:
     multiview_consistency: 1.0
-    spatial_distribution: 0.001
     separation: 1.0
     silhouette: 1.0
-    pose: 0.2
-    feature: 1.0
+    pose: 1.0
 
     reduction: "mean"
-    margin: 2
+    margin: 10
 
 optimizer:
     name: Adam
     learning_rate: 1e-3
-    enable_schedule: False
-    schedular_step_size: 4000
-    gamma: 0.9
+    enable_schedule: True
+    schedular_step_size: 5000
+    gamma: 0.99
     weight_decay: 0.0
 
 trainer:
@@ -39,13 +37,16 @@ trainer:
 dataloader:
     rgb_directory: dataset/rgbs
     mask_directory: dataset/masks
+    depth_directory: dataset/depths
+    extrinsic_directory: dataset/cam_to_world_trafo
+    camera_intrinsics_numpy_text: dataset/intrinsics.txt
     random_background_directory: dataset/random_backgrounds
 
     test_size: 0.2
     shuffle: True
 
     n_workers: 4
-    batch_size: 2
+    batch_size: 1
 
     random_hintergrund_probability: 0.4
     noisy_hintergrund_probability: 0.4
