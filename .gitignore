@@ -47,5 +47,5 @@
 *tmp/
 *trained_models/
 
-# Docker stuff
-*.devcontainer
+# DO not ignore the dataset
+!dataset/

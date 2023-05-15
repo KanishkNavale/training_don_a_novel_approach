@@ -1,43 +1,54 @@
-As of this writing, the ideal object representation for robot grasping and manipulation tasks is yet unknown.
-The existing representations may not be the best for tackling more complex tasks as they lack actual
-object information belonging to the same class and configuration (shape, color and size).
-In industrial robot-based automation, the objects are specifically coded for their visual features using 2D and 3D vision systems.
-The downside of this lies in the fact that the robot has to be taught to pick every other part with its visual representation.
-This process comes with the tedious schedule of teaching the robot to pick every part
-irrespective of the part's configuration, and viewpoint. The solution lies in using artificial intelligence (AI) equipped robots.
-A deep learning neural network (DNN) is based on artificial neurons capable to learning a task and is good as the task related
-data it is trained on. The data used to train DNN is often expensive as it requires engineered features that DNN can predict or regress.
-SIFT~\cite{sift}, SURF~\cite{bay2008speeded} and ORB~\cite{rublee2011orb} produce dense local descriptors of an object in an image
-and serve as target features to train DNN
-to yield object representation for robot grasping furthermore, these features computed by \parencites{sift}{bay2008speeded}{rublee2011orb} come with its own inert
-limitations and cannot generalize objects well. Our interests of work is on reducing efforts to develop hand engineered features to train DNN
-and developing DNN that can generalize plathora of objects such that we spend less time teaching robot how to tend objects in realtime.
+Creating a general-purpose robot capable of carrying out practical activities like Chappie~\cite{blomkamp2015chappie} or C-3PO~\cite{lucas1977star},
+is a long-standing objective of robotics and robotic manipulation. While advancements have been made recently in adjacent domains,
+achieving this goal remains a work in progress. For instance, AlphaGo~\cite{silver2018general},
+a game-playing artificial intelligence system trained entirely on self-play, defeated
+the world's best human Go player at the time. Subsequently, \citeauthor{silver2016mastering}~\cite{silver2016mastering}
+developed artificial intelligence algorithms that mastered the game of chess, Go, World of Warcraft~\cite{entertainment2013world}, and Shogi,
+surpassing human playing expertise. Most of these algorithms learn directly from visual data such as gameplay
+recordings or online video streams, emphasizing the importance of visual data in AI.
+Meanwhile, the launch of AlexNet~\cite{krizhevsky2017imagenet} in 2012 transformed the field of computer vision.
+Other visual tasks, such as semantic segmentation~\cite{long2015fully}, object identification and recognition~\cite{he2017mask},
+and human pose estimation~\cite{guler2018densepose}, have also witnessed significant gains in recent years. In robotics, significant
+breakthroughs have been made, ranging from self-driving cars to humanoid robots capable of performing complex tasks using cameras
+and other vision sensors. Despite these advancements, the most frequently used robotic manipulation systems have not evolved much
+in the previous 30 years. Typical auto-factory robots continue to perform repetitive operations such as welding and painting,
+with the robot following a pre-programmed course with no feedback from the surroundings. If we want to increase the utility of our robots,
+we must move away from highly controlled settings and robots that perform repetitive
+actions with little feedback or adaptability capabilities. Liberating ourselves from these constraints of controlled settings-based
+manufacturing would allow us to enter new markets, as witnessed by the proliferation of firms~\cite{sereact} competing in the logistics domain.
 
-
+The ideal object representation for robot grasping and manipulation tasks remains to be engineered today.
+Existing representations may not be suitable for complex tasks due to limited capabilities of understanding an object's geometrical and structural information.
 In \citeyear{florence2018dense}, \citeauthor{florence2018dense}~\cite{florence2018dense} introduced a novel visual
-object representation to the robotics community,  terming it ``dense visual object descriptors''. DON, an aritificial intelligence
+object representation to the robotics community,  terming it ``dense visual object descriptors''. DON, an artificial intelligence
 framework proposed by
 \Citeauthor{florence2018dense}~\cite{florence2018dense} produces dense visual object descriptors. In detail, the DON converts every pixel in the
-image ($I[u, v] \in \mathbb{R}^3$) to a higher dimensional embedding ($I_D[u, v] \in \mathbb{R}^D$) such that $D \in \mathbb{N}^+$
-which are nothing but dense local descriptors
-of that pixel respective to the image. The dense visual object descriptor generalize an object up to a certain extent and have been recently
+image ($I[u, v] \in \mathbb{R}^3$) to a higher dimensional embedding ($I_D[u, v] \in \mathbb{R}^D$) such that $D \in \mathbb{N}^+$ consuming
+image-pair correspondences as input yielding pixelwise embeddings
+which are nothing but dense local descriptors.
+The dense visual object descriptor generalizes an object up to a certain extent and has been recently
 applied to rope manipulation \cite{rope-manipulation},
 block manipulation \cite{block-manipulation}, robot control \cite{florence2019self}, fabric manipulation \cite{fabric-manipulation} and
-robot grasp pose estimation \parencites{kupcsik2021supervised}{adrian2022efficient}. \citeauthor{suwajanakorn2018discovery}~\cite{suwajanakorn2018discovery}
-propose self-supervised geometrically consistent keypoints, exploring the idea of optimizing a representation
-based on a sparse collection of keypoints or landmarks, but without access to keypoint annotations. The authors of \cite{suwajanakorn2018discovery}
-devise an end-to-end geometric reasoning framework
-first introduced by \cite{levine2016end} to regresses a set of geometrically consistent keypoints coined as KeypointNet.
-This means that KeypointNet is capable of generalizing objects without the need of hand engineered features.
-\citeauthor{suwajanakorn2018discovery}~\cite{suwajanakorn2018discovery} show that using two unique objective loss
-functions, namely, a relative pose
-estimation loss and a multi-view consistency goal, uncovers the consistent keypoints across multiple views and object instances.
-Their affine translation-equivariant design may extend to
-previously unknown object instances trained on ShapeNet \cite{chang2015shapenet} dataset.
+robot grasp pose estimation \parencites{kupcsik2021supervised}{adrian2022efficient}. \citeauthor{adrian2022efficient}~\cite{adrian2022efficient}
+further demonstrated that DON can be trained on synthetic data and still generalize to real-world objects. Furthermore, \citeauthor{adrian2022efficient}~\cite{adrian2022efficient} demonstrated that
+the quality of descriptors produced by the DON framework depends on the higher or longer embedding dimension. We tried training the DON on a computation
+device equipped with NVIDIA RTX A6000 GPU with 48GB VRAM. However, we could not train the DON to produce a higher embedding dimension due to the limited VRAM.
+The DON framework is computationally expensive, as shown in Table~\ref{table:don_gpu_bechmark}, and limits the user to generalize objects to a certain extent making it
+difficult to use as a robot grasping pipeline in real-world logistics and warehouse automation scenarios.
 
-At first, we present modifications to the DNN inspired from \cite{florence2018dense} and \cite{suwajanakorn2018discovery} such that we seemlessly
-train and mine object representations composed of object generalizing dense local descriptors while training for KeypointNet task. Second, we develop synthetic
-dataset using \cite{blenderproc} to train the DNN and prove that
-the mined dense local descriptors from our framework is as robust as dense visual object descriptors produced from DON while consuming less computation resources.
-Additionally, we demonstrate an self-supervised framework to train DON with semantically equivalent objects which is not
-previously demonstrated in \parencites{florence2018dense}{florence2020dense}{kupcsik2021supervised}{adrian2022efficient}{hadjivelichkov2021fully}{nerf-Supervision} to train DON.
+\begin{table}[htb]
+    \caption{Benchmark of DON framework trained on GPU with 48GB VRAM with 128 image-pair correspondences, batch size of 1 and ``Pixelwise NTXENT Loss''~\cite{adrian2022efficient} as a loss function.}
+    \label{table:don_gpu_bechmark}
+    \centering
+    \begin{tabular}{lllll}
+        \toprule
+        \multicolumn{5}{c}{GPU VRAM consumption to train DON}   \\
+        \midrule
+        Descriptor Dimension & 3     & 8      & 16     & 32     \\
+        VRAM Usage (GB)      & 9.377 & 13.717 & 20.479 & 30.067 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+To overcome the computation resource limitation to produce denser visual object descriptors, we propose a novel framework to
+train and extract dense visual object descriptors produced by DON, which is computationally efficient.

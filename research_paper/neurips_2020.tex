@@ -22,12 +22,14 @@
 \usepackage{url}            % simple URL typesetting
 \usepackage{booktabs}       % professional-quality tabless
 \usepackage{amsfonts}       % blackboard math symbols
+\usepackage{amsmath}
 \usepackage{nicefrac}       % compact symbols for 1/2, etc.
 \usepackage{microtype}      % microtypography
 \usepackage{cleveref}       % smart cross-referencing
 \usepackage{graphicx}
 \usepackage[english]{babel}
 \usepackage{csquotes}
+
 
 
 
@@ -42,18 +44,22 @@
   mincitenames=1,%
   maxcitenames=2,%
   maxbibnames=10,%
-  doi=false,%
+  doi=true,%
   isbn=false,%
   url=false,%
-  natbib=true,
+  natbib=false,
 ]{biblatex}
 
+\renewcommand*{\bibfont}{\small}
 \addbibresource{neurips_2020.bib}
 
 \title{Training Dense Object Nets: A Novel Approach}
 
 \author{%
-  Kanishk Navale, Ralf Gulde, Marc Tuscher, Oliver Riedel
+  Kanishk Navale\textsuperscript{1}\thanks{\textsuperscript{1}Sereact GmbH, Stuttgart, Germany. \texttt{firstname.lastname@sereact.ai}}, 
+  Ralf Gulde\textsuperscript{1, 2}\thanks{\textsuperscript{2}ISW, Universität Stuttgart, Stuttgart, Germany,  \texttt{firstname.lastname@isw.uni-stuttgart.de}}, 
+  Marc Tuscher\textsuperscript{1}, 
+  Oliver Riedel \textsuperscript{2}
 }
 
 \begin{document}
@@ -76,6 +82,12 @@
 \section{Introduction}
 \input{chapters/introduction.tex}
 
-{\small \printbibliography}
+\section{Related Work}
+\input{chapters/related.tex}
+
+\section{Methodology}
+\input{chapters/methodology.tex}
+
+\printbibliography
 
 \end{document}
