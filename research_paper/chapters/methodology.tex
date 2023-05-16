@@ -1,15 +1,17 @@
 \subsection{Dataset Engineering}
 
-We have chosen the cap object for creating synthetic dataset as the cap mesh models are readily available in the ``Shapenet'' library~\cite{chang2015shapenet}
-as it containes rich object information including textures. Furthermore, we choose 5 cap models from the Shapenet library and use
-Blenderproc~\cite{blenderproc} to generate the synthetic dataset.
-For each cap model we save one RGB image, mask and depth in the synthetic scene. Addtionally, we employ synthetic augmentations as proposed in \cite{adrian2022efficient}
-to synthetically spatial augment cap's position and rotation in an image including background randomization
+We have chosen the cap object for creating a synthetic dataset as the cap mesh models are readily available in the ``Shapenet''
+library~\cite{chang2015shapenet} as it contains rich object information, including textures.
+Furthermore, we choose five cap models from the Shapenet library and use Blenderproc~\cite{blenderproc}
+to generate the synthetic dataset. For each cap model, we save one RGB image, mask and depth from the synthetic scene.
+Additionally, we employ synthetic augmentations as proposed in \cite{adrian2022efficient} to synthetically
+spatial augment the cap's position and rotation in an image, including background randomization
 using Torchvision~\cite{marcel2010torchvision} library. To generate camera poses for different viewpoints,
-an augmented image-pair is sampled randomly and image-pair correspondences is computed
-\footnote[1]{GitHub Link: \\ \url{https://github.com/KanishkNavale/Mapping-Synthetic-Correspondences-in-an-Image-Pair}}as illustrated in the Figure~\ref{fig:image_augs}.
-Using depth information we project the computed correspondences to camera frame and compute relative transformation between two camera-frame coordinates of the correspondences
-using Kabsch's transformation~\cite{kabsch}.
+an augmented image-pair is sampled randomly, and 25 image-pair correspondences are computed
+\footnote[1]{GitHub Link: \\ \url{https://github.com/KanishkNavale/Mapping-Synthetic-Correspondences-in-an-Image-Pair}}
+as illustrated in the Figure~\ref{fig:image_augs}. Using depth information,
+we project the computed correspondences to the camera frame and compute the relative transformation between
+two camera-frame coordinates of the correspondences using Kabsch's transformation~\cite{kabsch}.
 
 \begin{figure}[htb]
     \centering
@@ -21,16 +23,15 @@ using Kabsch's transformation~\cite{kabsch}.
 \subsection{Framework \& Mining Strategy}
 
 As a backbone, we employ ResNet-34 architecture \cite{resnet}.
-We preserve the last convolution layer and remove the pooling and linear layers.
-The backbone downsamples the RGB image $I_{RGB} \in \mathbb{R}^{H \times W \times 3}$
+We preserve the last convolution layer and remove the pooling and linear layers. The backbone downsamples the RGB image $I_{RGB} \in \mathbb{R}^{H \times W \times 3}$
 to dense features $I_d \in \mathbb{R}^{h \times w \times D}$
 such that $ h \ll H, w \ll W \text{ and } D \in \mathbb{N}^+$.
 We upsample the dense features from the identity layer
-(being identity to the last convolution layer in the backbone) as illustrated in the Figure~\ref{fig:modified_dnn} in page~\pageref{fig:modified_dnn} as follows:
+(being identical to the last convolution layer in the backbone) as illustrated in the Figure~\ref{fig:modified_dnn} in page~\pageref{fig:modified_dnn} as follows:
 \begin{equation}
     f_U: I \in \mathbb{R}^{h \times w \times D} \rightarrow I_D \in \mathbb{R}^{H \times W \times D}.
 \end{equation}
-The upsampled dense features is extracted and treated as dense visual local descriptors produced from the DON in otherwords
+The upsampled dense features are extracted and treated as dense visual local descriptors produced from the DON. In otherwords
 we extract or mine the representations from the backbone.
 Similarly as in \cite{suwajanakorn2018discovery}, we stack spatial-probability regressing layer and
 depth regressing layer on top of the identity layer to predict $N \in \mathbb{N}^+$ number of keypoint's spatial-probability as follows:
@@ -54,8 +55,8 @@ on the KeypointNet task.
 \begin{figure}[htb]
     \centering
     \includegraphics[scale=0.325]{images/arch.png}
-    \caption{Illustration of novel framework designed to efficiently compute and seamlessly extract dense visual object descriptors.
-        During inference we extract dense visual object descriptors directly from the network and ignore predicted spatial-depth expectation of the keypoints.}
+    \caption{Illustration of the novel framework designed to compute and seamlessly extract dense visual object descriptors efficiently.
+        During inference, we extract dense visual object descriptors directly from the network and ignore predicted spatial-depth expectations of the keypoints.}
     \label{fig:modified_dnn}
 \end{figure}
 
@@ -69,8 +70,7 @@ project the predicted spatial-depth expectation using camera intrinsics as follo
     X_{cam} \in \mathbb{R}^{3 \times 1} = \mathcal{I}_{cam}^{-1}  \ [u, v, 1.0]^T \otimes d \text{ , where  } \ \mathcal{I}_{cam} \in \mathbb{R}^{3 \times 3} \text{ and }  u, v, d \in \mathbb{R}^+.
 \end{equation}
 
-Furthermore, we project the camera coordinates of the keypoints from one camera viewpoint to another camera viewpoint using relative transformation
-supplied from the synthetic augmentation procedure as follows:
+Furthermore, we project the camera coordinates of the keypoints from one camera viewpoint to another camera viewpoint using relative transformation supplied from the synthetic augmentation procedure as follows:
 
 \begin{equation}
     \label{eqn:mvc}
@@ -80,8 +80,8 @@ supplied from the synthetic augmentation procedure as follows:
 
 In Equation~\ref{eqn:mvc}, $ \mathcal{T}_{A \rightarrow B} \in SE(3) \in \mathbb{R}^{4 \times 4}$ is a Special Euclidean Group~\cite{thurston2014three} which
 is relative transformation from camera-frame $A$ to camera-frame $B$. We use Huber loss $\mathcal{H}$ as it produces smoother gradients for framework optimization.
-Furthermore, we do not discard the relative transformation information to calculate the realative pose loss as suggested in \cite{suwajanakorn2018discovery}
-and being influenced from \cite{zhao2020learning} we modified the relative pose loss as follows:
+Furthermore, we do not discard the relative transformation information to calculate the relative pose loss as suggested in \cite{suwajanakorn2018discovery}.
+Moreover, being influenced from \cite{zhao2020learning} we modified the relative pose loss as follows:
 \begin{equation}
     \mathcal{L}_{pose} = \Vert log(\mathcal{T}_{truth}^{\dagger} \mathcal{T}_{pred}) \Vert \text{ , where  } \ log: SE(3) \rightarrow \mathfrak{se}(3) \text{ and } \mathcal{T}^{\dagger} = \begin{bmatrix}
         R^T & -R^T t \\
@@ -99,16 +99,12 @@ query the descriptor from the database to find the closest match as follows:
     \mathbb{E}{[u^*, v^*]_{d}} = \operatorname*{argmin}_{u, v} \ exp-\left(\dfrac{\|I_D[u, v] - d\|}{exp(t)}\right)^2
 \end{equation}
 Where $t \in \mathbb{R}$ controls the kernel width influencing the search space to compute the optimal spatial expectation $\mathbb{E}{[u^*, v^*]_{d}}$ of
-the query descriptor $d \in \mathbb{R}^D$ in the descriptor image $I_D \in \mathbb{R}^{H \times W \times D}$. The computed spatial expectation is projected to robot frame using camera intrinsics and pose to perform a pinch grasp.
-Furthermore, Franka Emika 7-DOF robot manipulator with 2 jaw gripper and wrist mounted Intel Realsense D435 camera is used as testing setup as illustrated in Figure~\ref{fig:robot_setup}.
+the query descriptor $d \in \mathbb{R}^D$ in the descriptor image $I_D \in \mathbb{R}^{H \times W \times D}$. The computed spatial expectation is projected to the robot frame using camera intrinsics and poses to perform a pinch grasp.
+Furthermore, the Franka Emika 7-DOF robot manipulator with two jaw gripper and wrist-mounted Intel Realsense D435 camera is used as a testing setup as illustrated in Figure~\ref{fig:robot_setup}.
 
 \begin{figure}[htb]
     \centering
     \includegraphics[scale=0.25]{images/franka.png}
-    \caption{Illustration of the robot grasping pipeline setup. In the image, the robot is highlighted in red, the caps are highlighted in green and the camera is highlighted in blue.}
+    \caption{Illustration of the robot grasping pipeline setup. In the image, the robot is highlighted in red, the caps in green, and the camera in blue.}
     \label{fig:robot_setup}
 \end{figure}
-
-
-
-
