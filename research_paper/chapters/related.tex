@@ -32,7 +32,7 @@ the synthetically reconstructed scene to train DON.
 Recently, based on SIMCLR inspired frameworks~\parencites{chen2020simple}{zbontar2021barlow},
 \citeauthor{adrian2022efficient}~\cite{adrian2022efficient} introduced similar architecture and another novel loss function called
 Pixelwise NTXent loss to train DON more robustly.
-The Pixelwise NTxent loss consumes synthetic correspondences independent of depth cameras computed from image augmentations to train DON.
+The Pixelwise NTXent loss consumes synthetic correspondences independent of depth cameras computed from image augmentations to train DON.
 \citeauthor{adrian2022efficient}'s experiments show that the novel loss function is invariant to the batch size.
 Additionally adopted ``$PCK@k$''
 metric has been adopted as in proceedings \parencites{chai2019multi}{fathy2018hierarchical} to evaluate and benchmark
@@ -40,5 +40,4 @@ DON on cluttered scenes previously not benchmarked.
 
 In the proposed framework, we do not use any loss functions in
 \parencites{florence2018dense}{florence2020dense}{kupcsik2021supervised}{adrian2022efficient}{hadjivelichkov2021fully}{nerf-Supervision} to train DON
-however we adopt the network architecture from \cite{florence2018dense} and train on the task of the ``KeypointNet''\cite{suwajanakorn2018discovery}
-with adaption of the loss functions proposed in \parencites{suwajanakorn2018discovery}{zhao2020learning}.
+however we adopt the network architecture from \cite{florence2018dense} and train on the task of the KeypointNet\parencites{suwajanakorn2018discovery}{zhao2020learning}.

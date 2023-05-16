@@ -7,7 +7,7 @@ to generate the synthetic dataset. For each cap model, we save one RGB image, ma
 Additionally, we employ synthetic augmentations as proposed in \cite{adrian2022efficient} to synthetically
 spatial augment the cap's position and rotation in an image, including background randomization
 using Torchvision~\cite{marcel2010torchvision} library. To generate camera poses for different viewpoints,
-an augmented image-pair is sampled randomly, and 25 image-pair correspondences are computed
+an augmented image-pair is sampled randomly, additionally image-pair correspondences are computed
 \footnote[1]{GitHub Link: \\ \url{https://github.com/KanishkNavale/Mapping-Synthetic-Correspondences-in-an-Image-Pair}}
 as illustrated in the Figure~\ref{fig:image_augs}. Using depth information,
 we project the computed correspondences to the camera frame and compute the relative transformation between
@@ -50,7 +50,7 @@ to convert the upsampled predicted spatial-probability and depth of a keypoint t
 \end{equation}
 Furthermore, we train the framework in a twin architecture fashion as proposed in
 \parencites{chen2020simple}{zbontar2021barlow}{florence2018dense}{florence2020dense}{kupcsik2021supervised}{adrian2022efficient}{hadjivelichkov2021fully}{nerf-Supervision}
-on the KeypointNet task.
+on the modified KeypointNet task.
 
 \begin{figure}[htb]
     \centering
@@ -67,7 +67,7 @@ For training, we directly adopt silhoutte consistency loss ($\mathcal{L}_{obj}$)
 However, we modify the multi-view consistent loss and relative pose estimation loss. In the case of multi-view consistency loss we
 project the predicted spatial-depth expectation using camera intrinsics as follows:
 \begin{equation}
-    X_{cam} \in \mathbb{R}^{3 \times 1} = \mathcal{I}_{cam}^{-1}  \ [u, v, 1.0]^T \otimes d \text{ , where  } \ \mathcal{I}_{cam} \in \mathbb{R}^{3 \times 3} \text{ and }  u, v, d \in \mathbb{R}^+.
+    X_{cam} \in \mathbb{R}^{3 \times 1} = \mathcal{I}_{cam}^{-1}  \ [u, v, 1.0]^T \times d \text{ , where  } \ \mathcal{I}_{cam} \in \mathbb{R}^{3 \times 3} \text{ and }  u, v, d \in \mathbb{R}^+.
 \end{equation}
 
 Furthermore, we project the camera coordinates of the keypoints from one camera viewpoint to another camera viewpoint using relative transformation supplied from the synthetic augmentation procedure as follows:
@@ -78,7 +78,7 @@ Furthermore, we project the camera coordinates of the keypoints from one camera 
 \end{equation}
 
 
-In Equation~\ref{eqn:mvc}, $ \mathcal{T}_{A \rightarrow B} \in SE(3) \in \mathbb{R}^{4 \times 4}$ is a Special Euclidean Group~\cite{thurston2014three} which
+In Equation~\ref{eqn:mvc}, $ \mathcal{T}_{A \rightarrow B} \in SE(3)$ is a Special Euclidean Group~\cite{thurston2014three} which
 is relative transformation from camera-frame $A$ to camera-frame $B$. We use Huber loss $\mathcal{H}$ as it produces smoother gradients for framework optimization.
 Furthermore, we do not discard the relative transformation information to calculate the relative pose loss as suggested in \cite{suwajanakorn2018discovery}.
 Moreover, being influenced from \cite{zhao2020learning} we modified the relative pose loss as follows:
@@ -86,7 +86,7 @@ Moreover, being influenced from \cite{zhao2020learning} we modified the relative
     \mathcal{L}_{pose} = \Vert log(\mathcal{T}_{truth}^{\dagger} \mathcal{T}_{pred}) \Vert \text{ , where  } \ log: SE(3) \rightarrow \mathfrak{se}(3) \text{ and } \mathcal{T}^{\dagger} = \begin{bmatrix}
         R^T & -R^T t \\
         0^T & 1
-    \end{bmatrix} \in SE(3).
+    \end{bmatrix}.
 \end{equation}
 
 
@@ -96,7 +96,7 @@ one single descriptor of objects in a database manually for now. During inferenc
 query the descriptor from the database to find the closest match as follows:
 \begin{equation}
     \label{eqn:gaussian_kernel}
-    \mathbb{E}{[u^*, v^*]_{d}} = \operatorname*{argmin}_{u, v} \ exp-\left(\dfrac{\|I_D[u, v] - d\|}{exp(t)}\right)^2
+    \mathbb{E}{[u^*, v^*]_{d}} = \operatorname*{argmin}_{u, v} \ exp-\left(\dfrac{\|I_D[u, v] - d\|}{exp(t)}\right)^2 \text{ , where  } \|I_D[u, v] - d\| \in \mathbb{R}^{H \times W}.
 \end{equation}
 Where $t \in \mathbb{R}$ controls the kernel width influencing the search space to compute the optimal spatial expectation $\mathbb{E}{[u^*, v^*]_{d}}$ of
 the query descriptor $d \in \mathbb{R}^D$ in the descriptor image $I_D \in \mathbb{R}^{H \times W \times D}$. The computed spatial expectation is projected to the robot frame using camera intrinsics and poses to perform a pinch grasp.
