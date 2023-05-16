@@ -15,7 +15,7 @@
 % \usepackage[final]{neurips_2020}
 
 % to avoid loading the natbib package, add option nonatbib:
-\usepackage[nonatbib]{neurips_2020}
+\usepackage[nonatbib, preprint]{neurips_2020}
 \usepackage[utf8]{inputenc} % allow utf-8 input
 \usepackage[T1]{fontenc}    % use 8-bit T1 fonts
 \usepackage{hyperref}       % hyperlinks
@@ -56,10 +56,12 @@
 \title{Training Dense Object Nets: A Novel Approach}
 
 \author{%
-  Kanishk Navale\textsuperscript{1}\thanks{\textsuperscript{1}Sereact GmbH, Stuttgart, Germany. \texttt{firstname.lastname@sereact.ai}}, 
-  Ralf Gulde\textsuperscript{1, 2}\thanks{\textsuperscript{2}ISW, Universität Stuttgart, Stuttgart, Germany,  \texttt{firstname.lastname@isw.uni-stuttgart.de}}, 
-  Marc Tuscher\textsuperscript{1}, 
-  Oliver Riedel \textsuperscript{2}
+  Kanishk Navale\textsuperscript{1}\thanks{for correspondence: kanishk.navale@sereact.ai}, \quad
+  Ralf Gulde\textsuperscript{1, 2}, \quad
+  Marc Tuscher\textsuperscript{1}, \quad
+  Oliver Riedel \textsuperscript{2}\\
+  \textsuperscript{1}Sereact GmbH, Stuttgart, Germany \quad
+  \textsuperscript{2}ISW, Universität Stuttgart, Stuttgart, Germany\\
 }
 
 \begin{document}
@@ -87,6 +89,9 @@
 
 \section{Methodology}
 \input{chapters/methodology.tex}
+
+\section{Results}
+\input{chapters/results.tex}
 
 \printbibliography
 
