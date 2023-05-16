@@ -12,6 +12,7 @@ an augmented image-pair is sampled randomly, additionally image-pair corresponde
 as illustrated in the Figure~\ref{fig:image_augs}. Using depth information,
 we project the computed correspondences to the camera frame and compute the relative transformation between
 two camera-frame coordinates of the correspondences using Kabsch's transformation~\cite{kabsch}.
+Moreover, mask and depth images is not used during inference.
 
 \begin{figure}[htb]
     \centering
