@@ -1,47 +1,49 @@
-One of the main challenges in robotics is to create a general-purpose system capable of carrying out practical activities like Chappie~\cite{blomkamp2015chappie} or C-3PO~\cite{lucas1977star}. 
-While advancements have been made recently in adjacent domains, achieving this goal remains work in progress. 
-For instance, AlphaGo~\cite{silver2018general}, a game-playing artificial intelligence system trained entirely on self-play, defeated the world's best human Go player at the time. 
-Subsequently, \citeauthor{silver2016mastering}~\cite{silver2016mastering} developed artificial intelligence algorithms that master the game of chess, Go, World of Warcraft~\cite{entertainment2013world}, and Shogi, surpassing human playing expertise. 
-Most of these algorithms learn directly from visual data, such as gameplay recordings or online video streams, emphasizing the importance of visual data in deep learning. 
-Meanwhile, the launch of AlexNet~\cite{krizhevsky2017imagenet} in 2012 transformed the field of computer vision. 
-Other visual tasks, such as semantic segmentation~\cite{long2015fully}, object identification and recognition~\cite{he2017mask}, and human pose estimation~\cite{guler2018densepose}, have also witnessed significant gains in recent years. 
-Significant breakthroughs have been made in robotics, ranging from self-driving cars to humanoid robots capable of performing complex tasks using cameras and other vision sensors. 
-Despite these advancements, the most frequently used robotic manipulation systems have evolved slightly in the previous 30 years. 
-Typical industrial robots continue to perform repetitive operations such as welding and painting, following a pre-programmed course with no feedback from the surroundings. 
-If we want to increase the utility of our robots, we must move away from highly controlled settings and robots that perform repetitive actions with little feedback or adaptability capabilities. 
-%Liberating ourselves from these constraints of controlled settings-based manufacturing would allow us to enter new markets, as witnessed by the proliferation of firms~\cite{sereact} competing in the logistics domain.
-% maybe also cite palme paper here
-% and chatgpt
+Creating a general-purpose robotic system capable of performing practical tasks, such as those portrayed
+in movies like Chappie~\cite{blomkamp2015chappie} or C-3PO~\cite{lucas1977star}, is a significant challenge in robotics.
+While advancements have been made in related domains, achieving this goal remains an ongoing endeavour.
+Recent artificial intelligence (AI) breakthroughs, particularly in deep learning, have demonstrated remarkable capabilities.
+For instance, AlphaGo~\cite{silver2018general}, an AI system trained entirely on self-play, defeated the world's best human
+Go player at the time. Subsequent algorithms, such as those developed by \citeauthor{silver2016mastering}~\cite{silver2016mastering},
+have mastered complex games like chess, Go, World of Warcraft~\cite{entertainment2013world},
+and Shogi, surpassing human expertise. These achievements underscore the importance of visual data in
+deep learning, as these algorithms learn directly from visual inputs like gameplay recordings or online video streams.
+Additionally, the introduction of AlexNet~\cite{krizhevsky2017imagenet} in 2012 has revolutionized computer vision,
+leading to significant progress in tasks like semantic segmentation~\cite{long2015fully}, object identification
+and recognition~\cite{he2017mask}, and human pose estimation~\cite{guler2018densepose}.
 
-The ideal object representation for robot grasping and manipulation tasks remains to be an open question until this day.
-Existing representations may not be suitable for complex tasks due to limited capabilities of understanding an object's geometrical and structural information.
-In \citeyear{florence2018dense}, \citeauthor{florence2018dense}~\cite{florence2018dense} introduced a novel visual
-object representation to the robotics community,  terming it ``dense visual object descriptors''. 
-DON produces dense visual object descriptors. 
-In detail, the DON converts every pixel in the image ($I[u, v] \in \mathbb{R}^3$) to a higher dimensional embedding ($I_D[u, v] \in \mathbb{R}^D$) such that $D \in \mathbb{N}^+$ consuming image-pair correspondences as input yielding pixelwise embeddings which are nothing but dense local descriptors.
-These dense visual object descriptor generalizes an object up to a certain extent and has been recently applied to rope manipulation \cite{rope-manipulation}, block manipulation \cite{block-manipulation}, robot control \cite{florence2019self}, fabric manipulation \cite{fabric-manipulation} and robot grasp pose estimation \parencites{kupcsik2021supervised}{adrian2022efficient}. \citeauthor{adrian2022efficient}~\cite{adrian2022efficient} further demonstrated that DON can be trained on synthetic data and still generalize to real-world objects. Furthermore, \citeauthor{adrian2022efficient}~\cite{adrian2022efficient} demonstrated that the quality of descriptors produced by the DON framework depends on the dimension of the embedding. 
-% We tried training the DON on a computation device equipped with NVIDIA RTX A6000 GPU with 48GB VRAM. 
-% However, we could not train the DON to produce a higher embedding dimension due to the limited VRAM.
-% the last sentence is way too long
-The DON framework is computationally expensive, as shown in Table~\ref{table:don_gpu_bechmark}, and limits the user to generalize objects to a certain extent.
+Significant strides have also been made in robotics, including developing self-driving cars and humanoid robots capable
+of complex tasks using cameras and vision sensors. Integration of AI models, such as ChatGPT~\cite{openai2023gpt4} and
+PaLM~\cite{palm}, has further enhanced the capabilities of robots. ChatGPT, developed by OpenAI, improves
+human-robot interactions by generating coherent and contextually relevant responses, enabling robots to engage
+in meaningful conversations and provide informative answers. Palm-E, developed by Stanford University, combines
+computer vision and deep reinforcement learning, enabling robots to perceive and manipulate objects in their environment.
+These AI models hold significant potential to enhance the dexterity and adaptability of robots, opening up new
+possibilities across various industries.
 
-\begin{table}[htb]
-    \caption{Benchmark of DON framework trained on GPU with 48GB VRAM with 128 image-pair correspondences, batch size of 1 and ``Pixelwise NTXENT Loss''~\cite{adrian2022efficient} as a loss function.}
-    \label{table:don_gpu_bechmark}
-    \centering
-    \begin{tabular}{lllll}
-        \toprule
-        \multicolumn{5}{c}{GPU VRAM consumption to train DON}   \\
-        \midrule
-        Descriptor Dimension & 3     & 8      & 16     & 32     \\
-        VRAM Usage (GB)      & 9.377 & 13.717 & 20.479 & 30.067 \\
-        \bottomrule
-    \end{tabular}
-\end{table}
+However, developing and deploying these sophisticated AI models, particularly Large Language Models (LLMs)
+like ChatGPT and Palm-E, present their own challenges. LLMs' sheer size and complexity demand vast computational resources,
+raising concerns about excessive energy consumption and environmental impact. Researchers such as \Citeauthor{bender2021dangers}~\cite{bender2021dangers}
+and \citeauthor{strubell2019energy}~\cite{strubell2019energy} have raised alarms about the substantial carbon emissions associated with training and operating
+LLMs at scale, as well as the exacerbation
+of the digital divide due to the resource-intensive nature of LLMs. Responsible resource allocation and addressing the ethical implications
+of prioritizing computational power for LLMs are crucial for balancing technological progress and sustainability.
 
-Moreover, today's Large Language Models (LLMs) consume vast computational resources, posing significant concerns for the future.
-LLMs' sheer size and complexity require massive computing power, leading to excessive energy consumption and environmental harm.
-Researchers and experts have raised alarm about these issues. As \Citeauthor{bender2021dangers}~\cite{bender2021dangers} highlighted, the environmental impact of training and operating LLMs at scale is substantial, contributing to increased carbon emissions.
-Furthermore, in their paper, \citeauthor{strubell2019energy}~\cite{strubell2019energy} emphasized how the resource-intensive nature of LLMs exacerbates the digital divide, limiting access to advanced AI technologies for underprivileged populations. 
-The ethical implications of prioritizing computational power for LLMs over binding domains have also been acknowledged by researchers such as \citeauthor{amodei2016concrete}~\cite{amodei2016concrete}, stressing the need for responsible resource allocation. Striking a balance between technological progress and sustainability is essential, as echoed by various experts in the field. 
-Drawing motivation from LLMs impact of consumption of vast computational resources,we propose a novel framework to train and extract dense visual object descriptors produced by DON, which is computationally efficient.\footnote{Dataset and codebase link: \url{https://github.com/KanishkNavale/training_don_while_not_training_don}}
+In robotics, while typical industrial robots perform repetitive operations based on pre-programmed instructions,
+finding the ideal object representation for grasping and manipulation tasks remains unanswered.
+Existing representations may be unable to understand an object's geometrical and structural information, rendering them unsuitable for complex tasks
+In recent work, \citeauthor{florence2018dense}~\cite{florence2018dense} introduced a novel visual object representation termed "dense visual object descriptors" to the robotics community.
+This representation, generated by the Dense Object Nets (DON) framework, converts each pixel in an image ($I[u, v] \in \mathbb{R}^3$)
+into a higher-dimensional embedding ($I_D[u, v] \in \mathbb{R}^D$) such that $D \in \mathbb{N}^+$,
+using image-pair correspondences as input. These dense visual object descriptors provide a generalized representation of objects to a certain extent.
+
+
+The DON framework has shown promise in various domains, including rope manipulation~\cite{rope-manipulation},
+block manipulation~\cite{block-manipulation}, robot control~\cite{florence2019self}, fabric manipulation~\cite{fabric-manipulation},
+and robot grasp pose estimation~\parencites{kupcsik2021supervised}{adrian2022efficient}. \citeauthor{adrian2022efficient}~\cite{adrian2022efficient}
+demonstrated that DON can be trained on
+synthetic data and still generalize well to real-world objects. Furthermore, they highlighted the importance of the
+dimensionality of the embedding in determining the quality of the descriptors produced by the DON framework.
+
+
+In this paper, we address the challenges posed by the computationally intensive nature of AI and propose a new framework for training DON in a computationally efficient manner.
+Our approach aims to contribute to developing sustainable and efficient AI solutions for robotics, bridging the gap between technological progress and environmental responsibility.
