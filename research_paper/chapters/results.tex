@@ -1,38 +1,106 @@
 In this section, we outline the benchmarking results employed from the methodologies.
 We benchmark the DON framework with Pixelwise NT-Xent loss as in \cite{adrian2022efficient} and our framework
-with our revision of the loss function. We benchmark the descriptor's robustness
+with our revision of the loss function on a 48GB VRAM GPU. We benchmark the descriptor's robustness
 with the $AUC \pm \sigma$ for $PCK@k, \forall k \in [1, 100]$ metric.
 Furthermore, we benchmark the computational resource consumption of the DON and our frameworks.
 We also demonstrate the application of our framework as a robot-grasping pipeline in two methodologies,
 one of which our framework demonstrates its capabilities to produce object-specific 6D poses for robot grasping.
 
 
-\subsection{Dense Object Nets}
+\subsection{Training Setup}
 We implemented training and benchmarking using ``PyTorch-Lightning''\cite{falcon2019pytorch} and ``PyTorch''\cite{paszke2019pytorch} libraries.
 Furthermore, we employ
 ADAM\cite{kingma2014adam} optimizer to optimize the model for 2500 epochs with a learning rate of
 $\alpha = 3 \times 10^{-4}, \beta_1 = 0.9 \text{ and } \beta_2 = 0.999$ with weight decay $\eta =10^{-4}$ to benchmark the DON with Pixelwise NT-Xent loss as in ~\cite{adrian2022efficient}
 with a fixed batch size of 1 and 128 image-pair correspondences.
-As per the benchmarking results in Table~\ref{table:don_training_results}, the descriptor's robustness increases as the descriptor's dimension gets longer.
+
+To train our framework, we employ an ADAM optimizer to optimize the model for 2500 epochs with a learning rate of
+$\alpha = 1 \times 10^{-3}, \beta_1 = 0.9 \text{ and } \beta_2 = 0.999$ with no weight decay.
+We further use a fixed batch size of 1 and the StepLR scheduler with a step size 2500 and a gamma of 0.9 to train the model with all the loss weights to $1.0$ except variance loss weight to $1 \times 10^{-3}$.
+We trained the three models with 128 keypoints with a margin of 2 pixels for each descriptor dimension. We specifically chose 128 keypoints as it aligns with the notion that DON is benchmarked with 128 image-pair correspondences.
+
+\subsection{Benchmarking \& Results}
+The $AUC \pm \sigma$ for $PCK@k, \forall k \in [1, 100]$ is computed with 256 image-pair correspondences for both models.
+The metrics mean and std. deviation is calculated from benchmarking three models trained for each descriptor dimension.
+Due to the limited GPU VRAM capacity, we could not train DON for descriptor dimensions greater than 32.
+As per Table~\ref{table:benchmark_auc}, both frameworks benefit while training them for longer descriptor dimensions.
+Furthermore, the higher values infer robust descriptors in Table~\ref{table:benchmark_auc}. We notice that our framework
+works robustly as the descriptor dimension gets longer as the metric difference between DON and our framework reduces.
 
 \begin{table}[htb]
-    \caption{Benchmark of DON framework for GPU consumption and $AUC \pm \sigma$ for $PCK@k,  \forall k \in [1, 100]$ metric.}
-    \label{table:don_training_results}
+    \caption{Benchmarking outcomes for descriptors' evaluation metric.}
     \centering
-    \begin{tabular}{lllll}
+    \label{table:benchmark_auc}
+    \begin{tabular}{ccc}
         \toprule
-        \multicolumn{5}{c}{DON benchmark}                                                                     \\
+        \multicolumn{3}{c}{Benchmarking for $AUC \pm \sigma$ for $PCK@k, \forall k \in [1, 100]$} \\
         \midrule
-        Descriptor Size ($D$) & $3 $              & $8 $              & $16 $             & $32$              \\
-        AUC for $PCK@k$       & $0.922 \pm 0.006$ & $0.933 \pm 0.011$ & $0.948 \pm 0.012$ & $0.953 \pm 0.008$ \\
-        VRAM Usage (GB)       & $9.377 $          & $13.717 $         & $20.479 $         & $30.067$          \\
+        Descriptor Size ($D$) & Dense Object Nets          & Our framework                        \\ \hline
+        3                     & $\mathbf{0.922 \pm 0.006}$ & $0.914 \pm 0.009$                    \\
+        8                     & $\mathbf{0.933 \pm 0.011}$ & $0.928 \pm 0.015$                    \\
+        16                    & $\mathbf{0.948 \pm 0.012}$ & $0.945 \pm 0.010$                    \\
+        32                    & $\mathbf{0.953 \pm 0.008}$ & $0.950 \pm 0.009$                    \\
+        64                    & $ \mathtt{\sim}$           & $0.953 \pm 0.006$                    \\
+        128                   & $ \mathtt{\sim}$           & $0.957 \pm 0.012$                    \\
+        256                   & $ \mathtt{\sim}$           & $0.959 \pm 0.008$                    \\
+        512                   & $ \mathtt{\sim}$           & $0.962 \pm 0.011$                    \\
         \bottomrule
     \end{tabular}
 \end{table}
 
-The $AUC \pm \sigma$ for $PCK@k, \forall k \in [1, 100]$ is computed with 256 image-pair correspondences and
-the metrics mean and std. deviation is calculated from benchmarking 3 DON models trained for a single descriptor dimension.
-We could not train the descriptor dimension of 64 and 128 due to the limited VRAM. Furthermore, to inspect the
+While training both frameworks, we monitor the GPU VRAM consumption.
+As per the benchmark results in Table~\ref{table:benchmark_gpu},
+the DON consumption increases as the descriptor dimensions get longer while our
+framework consumes a fraction of the computation resource.
+Furthermore, lower readings are better in Table~\ref{table:benchmark_gpu}.
+
+\begin{table}[htb]
+    \caption{Benchmarking outcomes for training computation resource comsumption.}
+    \label{table:benchmark_gpu}
+    \centering
+    \begin{tabular}{ccc}
+        \toprule
+        \multicolumn{3}{c}{Benchmarking for GPU VRAM(GB) consumption} \\
+        \midrule
+        Descriptor Size ($D$) & Dense Object Nets & Our framework     \\ \hline
+        3                     & $9.377$           & $\mathbf{4.763}$  \\
+        8                     & $13.717$          & $\mathbf{4.785} $ \\
+        16                    & $20.479$          & $\mathbf{4.832} $ \\
+        32                    & $30.067$          & $\mathbf{4.872} $ \\
+        64                    & $ \mathtt{\sim}$  & $4.913$           \\
+        128                   & $ \mathtt{\sim}$  & $5.409 $          \\
+        256                   & $ \mathtt{\sim}$  & $6.551 $          \\
+        512                   & $ \mathtt{\sim}$  & $7.915 $          \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+To check the impact of descriptors' robustness compared to the number of keypoints, we trained our framework with 16 keypoints.
+Furthermore, we trained three additional models for each descriptor dimension 64, 128, 256, and 512.
+As per the table~\ref{table:reduced_framework_training_results} compared to the results in Table~\ref{table:benchmark_auc} in page~\ref{table:benchmark_auc},
+the descriptor's robustness decreased when the framework predicted 16 keypoints.
+Moreover, this reflects that number of keypoints in our framework and the number of image-pair correspondences in DON are directly proportional to the robustness of the descriptors.
+
+
+\begin{table}[htb]
+    \caption{Benchmark of our framework with 16 keypoints for GPU VRAM(GB) consumption and $AUC \pm \sigma$ for $PCK@k,  \forall k \in [1, 100]$ metric.}
+    \label{table:reduced_framework_training_results}
+    \centering
+    \begin{tabular}{ccc}
+        \toprule
+        \multicolumn{3}{c}{Our framework with 16 keypoints}                                            \\
+        \midrule
+        Descriptor Size ($D$) & $AUC \pm \sigma$ for $PCK@k, \forall k \in [1, 100]$ & VRAM Usage (GB) \\ \hline
+        64                    & $0.948 \pm 0.009$                                    & $3.799 $        \\
+        128                   & $0.952 \pm 0.010$                                    & $4.191 $        \\
+        256                   & $0.955 \pm 0.013$                                    & $5.241 $        \\
+        512                   & $0.957 \pm 0.006$                                    & $7.341 $        \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\subsection{Descriptor Inspection}
+Furthermore, to inspect the
 results of trained DON, an interface is built using the PyGame library~\cite{pygame} to visualize the results of the trained DON.
 The mouse pointer in the image space is mapped to the pixel, and the descriptor at that pixel is queried in another image-descriptor space.
 We further use the spatial probability of the descriptor to visualize the queried descriptor
@@ -47,61 +115,6 @@ We identify if there are any multi-modal spatial activations in the descriptor s
     \label{fig:check_don}
 \end{figure}
 
-
-\subsection{Our Framework}
-
-To train our framework, we employ an ADAM optimizer to optimize the model for 2500 epochs with a learning rate of
-$\alpha = 1 \times 10^{-3}, \beta_1 = 0.9 \text{ and } \beta_2 = 0.999$ with no weight decay.
-We further use a fixed batch size of 1 and the StepLR scheduler with a step size 2500 and a gamma of 0.9 to train the model with all the loss weights to $1.0$ except variance loss weight to $1 \times 10^{-3}$.
-We trained the three models with 128 keypoints with a margin of 2 pixels for each descriptor dimension. We specifically chose 128 keypoints as it aligns with the notion that DON is benchmarked with 128 image-pair correspondences.
-As per the Table~\ref{table:framework_training_results} in page~\pageref{table:framework_training_results}, the descriptor's robustness increases as the descriptor's dimension gets longer, which is in line with the benchmarking results of DON.
-
-\begin{table}[htb]
-    \caption{Benchmark of our framework for GPU consumption and $AUC \pm \sigma$ for $PCK@k,  \forall k \in [1, 100]$ metric.}
-    \label{table:framework_training_results}
-    \centering
-    \begin{tabular}{lll}
-        \toprule
-        \multicolumn{3}{c}{Our framework with 128 keypoints}                   \\
-        \midrule
-        Descriptor Size ($D$) & $AUC \pm \sigma$ for $PCK@k$ & VRAM Usage (GB) \\ \hline
-        3                     & $0.914 \pm 0.009$            & $4.763$         \\
-        8                     & $0.928 \pm 0.015$            & $4.785 $        \\
-        16                    & $0.945 \pm 0.010$            & $4.832 $        \\
-        32                    & $0.950 \pm 0.009$            & $4.872 $        \\
-        64                    & $0.953 \pm 0.006$            & $4.913 $        \\
-        128                   & $0.957 \pm 0.012$            & $5.409 $        \\
-        256                   & $0.959 \pm 0.008$            & $6.551 $        \\
-        512                   & $0.962 \pm 0.011$            & $7.915 $        \\
-        \bottomrule
-    \end{tabular}
-\end{table}
-
-To check the impact of descriptors' robustness compared to the number of keypoints, we trained our framework with 16 keypoints.
-Furthermore, we trained three additional models for each descriptor dimension 64, 128, 256, and 512.
-As per the table~\ref{table:reduced_framework_training_results} compared to the results in Table~\ref{table:framework_training_results},
-the descriptor's robustness decreased when the framework predicted 16 keypoints.
-Moreover, this reflects that number of keypoints in our framework and the number of image-pair correspondences in DON are directly proportional to the robustness of the descriptors.
-
-\begin{table}[htb]
-    \caption{Benchmark of our framework with 16 keypoints for GPU consumption and $AUC \pm \sigma$ for $PCK@k,  \forall k \in [1, 100]$ metric.}
-    \label{table:reduced_framework_training_results}
-    \centering
-    \begin{tabular}{lll}
-        \toprule
-        \multicolumn{3}{c}{Our framework with 16 keypoints}                    \\
-        \midrule
-        Descriptor Size ($D$) & $AUC \pm \sigma$ for $PCK@k$ & VRAM Usage (GB) \\ \hline
-        64                    & $0.948 \pm 0.009$            & $3.799 $        \\
-        128                   & $0.952 \pm 0.010$            & $4.191 $        \\
-        256                   & $0.955 \pm 0.013$            & $5.241 $        \\
-        512                   & $0.957 \pm 0.006$            & $7.341 $        \\
-        \bottomrule
-    \end{tabular}
-\end{table}
-
-\subsection{Robot Grasping Pipeline}
-
 For the robot grasping pipeline, we trained our framework with actual caps.
 As the synthetic data generation only needs mask and depth information, we could create a mask in no time.
 Additionally, while training the framework, we do not need the actual real-world depth information as it computes its own.
@@ -111,13 +124,18 @@ and found it consistent. Furthermore, we did not use the models trained on the s
 
 \begin{figure}[htb]
     \centering
-    \includegraphics[scale=0.25]{images/test_real_caps.png}
-    \caption{Visual inspection of the dense visual descriptors space of the real caps.}
+    \includegraphics[scale=0.29]{images/test_real_caps.png}
+    \caption{The image depicts the visual inspection of the dense visual descriptors space of the real caps using our developed interface. We trained our framework on the first two caps from the left, and our framework could generalize the object representations on an unseen cap while training illustrated in the first image from the right.}
     \label{fig:check_real_caps}
 \end{figure}
 
+
+
+\subsection{Robot Grasping Pipeline}
+
 For robot grasping, a descriptor is picked from the descriptor space and queried in real-time such that robot can pinch-grasp the object.
 We could successfully grasp the caps with the robot, as shown in Figure~\ref{fig:straight_grasp} in page~\pageref{fig:straight_grasp}.
+Furthermore, we did not evaluation the robot grasping itself.
 
 \begin{figure}[htb]
     \centering
