@@ -45,23 +45,25 @@ To train our framework, we employ an ADAM optimizer to optimize the model for 25
 $\alpha = 1 \times 10^{-3}, \beta_1 = 0.9 \text{ and } \beta_2 = 0.999$ with no weight decay.
 We further use a fixed batch size of 1 and the StepLR scheduler with a step size 2500 and a gamma of 0.9 to train the model with all the loss weights to $1.0$ except variance loss weight to $1 \times 10^{-3}$.
 At first, we trained our model with 16 keypoints with a margin of 10 pixels as a hyperparameter for the separation loss, and later, we trained the models with 128 keypoints with a margin of 2 pixels.
+We chose 128 keypoints such that it is inline to the notion that DON is benchmarked with 128 image-pair correspondences.
 
 \begin{table}[htb]
     \caption{Benchmark of our framework for GPU consumption and $AUC \pm \sigma$ for $PCK@k,  \forall k \in [1, 100]$ metric.}
     \label{table:framework_training_results}
     \centering
-    \begin{tabular}{lllll}
+    \begin{tabular}{lll}
         \toprule
-        \multicolumn{5}{c}{Our framework with 16 keypoints}                                                          \\
+        \multicolumn{3}{c}{Our framework with 128 keypoints}                   \\
         \midrule
-        Descriptor Size ($D$)        & $64 $             & $128 $            & $256 $            & $512$             \\
-        $AUC \pm \sigma$ for $PCK@k$ & $0.922 \pm 0.006$ & $0.933 \pm 0.011$ & $0.948 \pm 0.012$ & $0.953 \pm 0.008$ \\
-        VRAM Usage (GB)              & $3.799 $          & $4.191 $          & $5.241 $          & $7.341$           \\ \hline
-        \multicolumn{5}{c}{Our framework with 128 keypoints}                                                         \\
-        \midrule
-        Descriptor Size ($D$)        & $64 $             & $128 $            & $256 $            & $512$             \\
-        $AUC \pm \sigma$ for $PCK@k$ & $0.922 \pm 0.006$ & $0.933 \pm 0.011$ & $0.948 \pm 0.012$ & $0.953 \pm 0.008$ \\
-        VRAM Usage (GB)              & $4.913 $          & $5.409 $          & $6.551$           & $7.915$           \\
+        Descriptor Size ($D$) & $AUC \pm \sigma$ for $PCK@k$ & VRAM Usage (GB) \\ \hline
+        3                     & $0.914 \pm 0.009$            & $4.763$         \\
+        8                     & $4.913 $                     & $4.785 $        \\
+        16                    & $4.913 $                     & $4.832 $        \\
+        32                    & $4.913 $                     & $4.872 $        \\
+        64                    & $4.913 $                     & $4.913 $        \\
+        128                   & $4.913 $                     & $5.409 $        \\
+        256                   & $4.913 $                     & $6.551 $        \\
+        512                   & $4.913 $                     & $7.915 $        \\
         \bottomrule
     \end{tabular}
 \end{table}
