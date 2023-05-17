@@ -77,7 +77,7 @@ Furthermore, lower readings are better in Table~\ref{table:benchmark_gpu}.
 
 To check the impact of descriptors' robustness compared to the number of keypoints, we trained our framework with 16 keypoints.
 Furthermore, we trained three additional models for each descriptor dimension 64, 128, 256, and 512.
-As per the table~\ref{table:reduced_framework_training_results} compared to the results in Table~\ref{table:benchmark_auc} in page~\ref{table:benchmark_auc},
+As per the Table~\ref{table:reduced_framework_training_results} compared to the results in Table~\ref{table:benchmark_auc} in page~\ref{table:benchmark_auc},
 the descriptor's robustness decreased when the framework predicted 16 keypoints.
 Moreover, this reflects that number of keypoints in our framework and the number of image-pair correspondences in DON are directly proportional to the robustness of the descriptors.
 
@@ -124,7 +124,7 @@ and found it consistent. Furthermore, we did not use the models trained on the s
 
 \begin{figure}[htb]
     \centering
-    \includegraphics[scale=0.29]{images/test_real_caps.png}
+    \includegraphics[scale=0.2]{images/test_real_caps.png}
     \caption{The image depicts the visual inspection of the dense visual descriptors space of the real caps using our developed interface. We trained our framework on the first two caps from the left, and our framework could generalize the object representations on an unseen cap while training illustrated in the first image from the right.}
     \label{fig:check_real_caps}
 \end{figure}
@@ -134,8 +134,8 @@ and found it consistent. Furthermore, we did not use the models trained on the s
 \subsection{Robot Grasping Pipeline}
 
 For robot grasping, a descriptor is picked from the descriptor space and queried in real-time such that robot can pinch-grasp the object.
-We could successfully grasp the caps with the robot, as shown in Figure~\ref{fig:straight_grasp} in page~\pageref{fig:straight_grasp}.
-Furthermore, we did not evaluation the robot grasping itself.
+We could successfully grasp the caps with the robot, as shown in Figure~\ref{fig:straight_grasp}.
+Furthermore, we did not evaluate the robot grasping for position and semantic object location offsets.
 
 \begin{figure}[htb]
     \centering
@@ -152,7 +152,7 @@ to calculate a 6D pose in the camera frame. The 6D pose is transformed in the ro
 
 \begin{figure}[htb]
     \centering
-    \includegraphics[scale=0.17]{images/aligned.png}
+    \includegraphics[scale=0.235]{images/aligned.png}
     \caption{Illustration of the aligned robot grasping pipeline.}
     \label{fig:aligned_grasp}
 \end{figure}

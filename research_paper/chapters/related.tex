@@ -50,8 +50,19 @@ well to real-world objects. Furthermore, they adopted the $PCK@k$ metric, common
 \parencites{chai2019multi}{fathy2018hierarchical}, to evaluate and benchmark DON's performance
 in cluttered scenes that were previously not extensively studied.
 
+On further exploration of frameworks that could generalize objects,
+we ended up at the framework introduced by \citeauthor{suwajanakorn2018discovery}~\cite{suwajanakorn2018discovery}.
+The authors presented a framework to predict geometrically consistent keypoints.
+These keypoints possess the capability to generalize objects.
+Upon further investigation, we discovered that one of the layers within the framework bears a resemblance
+to dense visual object descriptors. This similarity is attributed to the inherent property of the framework,
+which involves regressing keypoints that hold semantic equivalence across objects.
+Building upon the framework introduced in \cite{suwajanakorn2018discovery}, \Citeauthor{zhao2020learning}~\cite{zhao2020learning}
+extended it to a multi-object scene.
+
 In our work, we do not use any loss functions as proposed in \parencites{florence2018dense}{florence2020dense}{kupcsik2021supervised}{adrian2022efficient}{hadjivelichkov2021fully}{nerf-Supervision}
 to train DON. However, we adopt the network architecture from DON~\cite{florence2018dense}
 as our architecture's backbone and train on the task of the KeypointNet\parencites{suwajanakorn2018discovery}{zhao2020learning}
 with few network modifications. Moreover, we evaluate the descriptor's robustness produced by our framework on the $PCK@k$ metric as in comparision
-to benchmarks in \cite{adrian2022efficient} as it is the only benchmark available for DON. Furthermore, we compare the computational resource consumption.
+to benchmarks in \cite{adrian2022efficient} as it is the only benchmark available for DON.
+Furthermore, we compare the computational resource consumption used for training both frameworks.

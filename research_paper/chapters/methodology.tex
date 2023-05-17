@@ -2,10 +2,10 @@ In this section, we outline the methodologies employed.
 Our approach encompasses synthetic dataset engineering,
 a novel framework, loss function modifications and a comprehensive grasping pipeline.
 
-Firstly, we focus on synthetic dataset engineering accomodating spatial, colour and background augmentation. The color and
+Firstly, we focus on synthetic dataset engineering accommodating spatial, colour and background augmentation. The colour and
 background augmentations help the framework to predict object-oriented descriptors.
 Secondly, we present a novel framework designed to reduce computational resource consumption with loss function
-modifications to optimize performance. Lastly, we introduce a comprehensive robot grasping pipeline, integrating all methodologies into a unified system.
+modifications to optimize performance. Lastly, we introduce a comprehensive robot grasping pipeline exploiting the generalizing capabilities of our framework.
 
 \subsection{Dataset Engineering}
 
@@ -14,9 +14,11 @@ Furthermore, we choose five cap models from the Shapenet library and use Blender
 to generate the synthetic dataset. We save one RGB image, mask, and depth for each cap model from the synthetic scene.
 Additionally, we employ synthetic augmentations as proposed in \cite{adrian2022efficient} to synthetically
 spatial augment the cap's position and rotation in an image, including background randomization
-using Torchvision~\cite{marcel2010torchvision} library. An augmented image-pair is sampled randomly to generate camera poses for different viewpoints. Additionally, image-pair correspondences are computed
+using Torchvision~\cite{marcel2010torchvision} library. An augmented image pair is sampled randomly to generate camera poses for different viewpoints. Additionally, image-pair correspondences are computed
 \footnote[1]{GitHub Link: \emph{link is made anonymous for the review}}
-as illustrated in the Figure~\ref{fig:image_augs}. Using depth information,
+as illustrated in the Figure~\ref{fig:image_augs}. We only compute 24 image-pair correspondences
+for an image-pair as we found that 24 image correspondences yield stable computation for translation and rotation for all the objects.
+Using depth information,
 we project the computed correspondences to the camera frame and compute the relative transformation between
 two camera-frame coordinates of the correspondences using Kabsch's transformation~\cite{kabsch}.
 Moreover, mask and depth images are not used during inference.
@@ -27,6 +29,7 @@ Moreover, mask and depth images are not used during inference.
     \caption{Depiction of image synthetic spatial augmentation and correspondences mapping in an image-pair. The colored encoded dots in the figure represents correspondences in an image-pair.}
     \label{fig:image_augs}
 \end{figure}
+
 
 \subsection{Framework \& Mining Strategy}
 
@@ -112,7 +115,7 @@ Furthermore, the Franka Emika 7-DOF robot manipulator with two jaw gripper and w
 
 \begin{figure}[htb]
     \centering
-    \includegraphics[scale=0.35]{images/franka.png}
+    \includegraphics[scale=0.25]{images/franka.png}
     \caption{Illustration of the robot grasping pipeline setup. In the image, the robot is highlighted in red, the caps in green, and the camera in blue.}
     \label{fig:robot_setup}
 \end{figure}
