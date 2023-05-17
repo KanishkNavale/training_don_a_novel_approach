@@ -1,18 +1,24 @@
+In this section, we outline the methodologies employed.
+Our approach encompasses synthetic dataset engineering,
+a novel framework, loss function modifications and a comprehensive grasping pipeline.
+
+Firstly, we focus on synthetic dataset engineering emphasizing spatial, colour and background augmentation.
+Secondly, we present a novel framework designed to reduce computational resource consumption with loss function
+modifications to optimize performance. Lastly, we introduce a comprehensive robot grasping pipeline, integrating all methodologies into a unified system.
+
 \subsection{Dataset Engineering}
 
-We have chosen the cap object for creating a synthetic dataset as the cap mesh models are readily available in the ``Shapenet''
-library~\cite{chang2015shapenet} as it contains rich object information, including textures.
+We have chosen the cap object for creating a synthetic dataset as the cap mesh models are readily available in the Shapenet library~\cite{chang2015shapenet} as it contains rich object information, including textures.
 Furthermore, we choose five cap models from the Shapenet library and use Blenderproc~\cite{blenderproc}
-to generate the synthetic dataset. For each cap model, we save one RGB image, mask and depth from the synthetic scene.
+to generate the synthetic dataset. We save one RGB image, mask, and depth for each cap model from the synthetic scene.
 Additionally, we employ synthetic augmentations as proposed in \cite{adrian2022efficient} to synthetically
 spatial augment the cap's position and rotation in an image, including background randomization
-using Torchvision~\cite{marcel2010torchvision} library. To generate camera poses for different viewpoints,
-an augmented image-pair is sampled randomly, additionally image-pair correspondences are computed
+using Torchvision~\cite{marcel2010torchvision} library. An augmented image-pair is sampled randomly to generate camera poses for different viewpoints. Additionally, image-pair correspondences are computed
 \footnote[1]{GitHub Link: \\ \url{https://github.com/KanishkNavale/Mapping-Synthetic-Correspondences-in-an-Image-Pair}}
 as illustrated in the Figure~\ref{fig:image_augs}. Using depth information,
 we project the computed correspondences to the camera frame and compute the relative transformation between
 two camera-frame coordinates of the correspondences using Kabsch's transformation~\cite{kabsch}.
-Moreover, mask and depth images is not used during inference.
+Moreover, mask and depth images are not used during inference.
 
 \begin{figure}[htb]
     \centering

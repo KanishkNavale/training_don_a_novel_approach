@@ -1,3 +1,10 @@
+In this section, we outline the benchmarking results employed from the methodologies.
+We benchmark the DON framework with Pixelwise NT-Xent loss as in \cite{adrian2022efficient} and our framework with the
+proposed loss function with $AUC \pm \sigma$ for $PCK@k, \forall k \in [1, 100]$ metric.
+Furthermore, we benchmark the computational resource consumption of the DON framework and our framework.
+We also demonstrate the application of our framework as a robot-grasping pipeline in two methodologies,
+one of which our framework demonstrates its capabilities to produce object-specific 6D poses for robot grasping.
+
 \subsection{Dense Object Nets}
 We implemented training and benchmarking using ``PyTorch-Lightning''\cite{falcon2019pytorch} and ``PyTorch''\cite{paszke2019pytorch} libraries.
 Furthermore, we employ
@@ -107,5 +114,3 @@ to calculate a 6D pose in the camera frame. The 6D pose is transformed in the ro
     \caption{Illustration of the aligned robot grasping pipeline.}
     \label{fig:aligned_grasp}
 \end{figure}
-
-We did not evaluate the robot grasping pipeline.
