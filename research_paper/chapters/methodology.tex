@@ -2,7 +2,8 @@ In this section, we outline the methodologies employed.
 Our approach encompasses synthetic dataset engineering,
 a novel framework, loss function modifications and a comprehensive grasping pipeline.
 
-Firstly, we focus on synthetic dataset engineering emphasizing spatial, colour and background augmentation.
+Firstly, we focus on synthetic dataset engineering accomodating spatial, colour and background augmentation. The color and
+background augmentations help the framework to predict object-oriented descriptors.
 Secondly, we present a novel framework designed to reduce computational resource consumption with loss function
 modifications to optimize performance. Lastly, we introduce a comprehensive robot grasping pipeline, integrating all methodologies into a unified system.
 
@@ -61,7 +62,7 @@ on the modified KeypointNet task.
 
 \begin{figure}[htb]
     \centering
-    \includegraphics[scale=0.325]{images/arch.png}
+    \includegraphics[scale=0.32]{images/arch.png}
     \caption{Illustration of the novel framework designed to compute and seamlessly extract dense visual object descriptors efficiently.
         During inference, we extract dense visual object descriptors directly from the network and ignore predicted spatial-depth expectations of the keypoints.}
     \label{fig:modified_dnn}
@@ -111,7 +112,7 @@ Furthermore, the Franka Emika 7-DOF robot manipulator with two jaw gripper and w
 
 \begin{figure}[htb]
     \centering
-    \includegraphics[scale=0.25]{images/franka.png}
+    \includegraphics[scale=0.35]{images/franka.png}
     \caption{Illustration of the robot grasping pipeline setup. In the image, the robot is highlighted in red, the caps in green, and the camera in blue.}
     \label{fig:robot_setup}
 \end{figure}

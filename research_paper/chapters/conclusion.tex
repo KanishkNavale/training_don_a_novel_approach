@@ -1,6 +1,12 @@
-We present a novel framework for mining dense visual object descriptors without explicitly training DON.
-By leveraging synthetic augmentation data generation and a novel deep learning architecture,
-our approach produces robust and denser visual local descriptors while consuming up to 86.67\% lesser computational resources than the originally proposed framework.
-Furthermore, it eliminates the additional task of computing a large number of image-pair correspondences.
-We demonstrate the application of our framework as a robot-grasping pipeline in two methodologies,
-one of which our framework demonstrates its capabilities to produce object-specific 6D poses for robot grasping.
+This paper introduces a novel framework for mining dense visual object descriptors without explicitly training DON. We have successfully
+eliminated the requirement for image-pair correspondence mapping in training DON by employing synthetic augmentation data generation and a novel deep-learning architecture.
+Our benchmarking results showcase the effectiveness of our framework in generating robust and denser visual local descriptors.
+However, it needs to outperform the original DON framework in robustness.
+Moreover, a notable advantage of our proposed framework is its significantly reduced computational resource consumption,
+amounting to a remarkable 86.67\% decrease compared to the originally proposed framework.
+It is important to note that our current framework is limited to single object-dense visual descriptors. Nevertheless,
+we have plans to extend our methodology to encompass the production of multi-object dense visual descriptors in cluttered scenes.
+By doing so, we aim to enhance the versatility and applicability of our framework in real-world scenarios.
+To demonstrate the practicality of our framework, we have integrated it into a robot-grasping pipeline using two distinct methodologies.
+Remarkably, our framework can generate object-specific 6D poses, enhancing robot grasping performance.
+This successful application further highlights the potential utility of our framework in real-world robotic systems.

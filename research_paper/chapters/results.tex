@@ -1,9 +1,11 @@
 In this section, we outline the benchmarking results employed from the methodologies.
-We benchmark the DON framework with Pixelwise NT-Xent loss as in \cite{adrian2022efficient} and our framework with the
-proposed loss function with $AUC \pm \sigma$ for $PCK@k, \forall k \in [1, 100]$ metric.
-Furthermore, we benchmark the computational resource consumption of the DON framework and our framework.
+We benchmark the DON framework with Pixelwise NT-Xent loss as in \cite{adrian2022efficient} and our framework
+with our revision of the loss function. We benchmark the descriptor's robustness
+with the $AUC \pm \sigma$ for $PCK@k, \forall k \in [1, 100]$ metric.
+Furthermore, we benchmark the computational resource consumption of the DON and our frameworks.
 We also demonstrate the application of our framework as a robot-grasping pipeline in two methodologies,
 one of which our framework demonstrates its capabilities to produce object-specific 6D poses for robot grasping.
+
 
 \subsection{Dense Object Nets}
 We implemented training and benchmarking using ``PyTorch-Lightning''\cite{falcon2019pytorch} and ``PyTorch''\cite{paszke2019pytorch} libraries.
@@ -21,7 +23,7 @@ As per the benchmarking results in Table~\ref{table:don_training_results}, the d
         \toprule
         \multicolumn{5}{c}{DON benchmark}                                                                     \\
         \midrule
-        Descriptor Size ($D$) & $3 $              & $8 $              & $4 $              & $32$              \\
+        Descriptor Size ($D$) & $3 $              & $8 $              & $16 $             & $32$              \\
         AUC for $PCK@k$       & $0.922 \pm 0.006$ & $0.933 \pm 0.011$ & $0.948 \pm 0.012$ & $0.953 \pm 0.008$ \\
         VRAM Usage (GB)       & $9.377 $          & $13.717 $         & $20.479 $         & $30.067$          \\
         \bottomrule
@@ -34,12 +36,12 @@ We could not train the descriptor dimension of 64 and 128 due to the limited VRA
 results of trained DON, an interface is built using the PyGame library~\cite{pygame} to visualize the results of the trained DON.
 The mouse pointer in the image space is mapped to the pixel, and the descriptor at that pixel is queried in another image-descriptor space.
 We further use the spatial probability of the descriptor to visualize the queried descriptor
-in the image space using Equation~\ref{eqn:gaussian_kernel}
-Identify if there are any multi-modal spatial activations in the descriptor spaces and none, as shown in Figure~\ref{fig:check_don}.
+in the image space using Equation~\ref{eqn:gaussian_kernel} in page~\pageref{eqn:gaussian_kernel}.
+We identify if there are any multi-modal spatial activations in the descriptor spaces and none, as shown in Figure~\ref{fig:check_don}.
 
 \begin{figure}[htb]
     \centering
-    \includegraphics[scale=0.25]{images/test_don.png}
+    \includegraphics[scale=0.3]{images/test_don.png}
     \caption{Depiction of the spatial probability heatmaps of the descriptor in the image space. We set the temperature in the Equation~\ref{eqn:gaussian_kernel} to $1.1$
         and render the spatial probability heatmaps in the interface. The first and second image from the left and the right highlights the semantically equivalent descriptors in the image space.}
     \label{fig:check_don}
@@ -51,8 +53,8 @@ Identify if there are any multi-modal spatial activations in the descriptor spac
 To train our framework, we employ an ADAM optimizer to optimize the model for 2500 epochs with a learning rate of
 $\alpha = 1 \times 10^{-3}, \beta_1 = 0.9 \text{ and } \beta_2 = 0.999$ with no weight decay.
 We further use a fixed batch size of 1 and the StepLR scheduler with a step size 2500 and a gamma of 0.9 to train the model with all the loss weights to $1.0$ except variance loss weight to $1 \times 10^{-3}$.
-At first, we trained our model with 16 keypoints with a margin of 10 pixels as a hyperparameter for the separation loss, and later, we trained the models with 128 keypoints with a margin of 2 pixels.
-We chose 128 keypoints such that it is inline to the notion that DON is benchmarked with 128 image-pair correspondences.
+We trained the three models with 128 keypoints with a margin of 2 pixels for each descriptor dimension. We specifically chose 128 keypoints as it aligns with the notion that DON is benchmarked with 128 image-pair correspondences.
+As per the Table~\ref{table:framework_training_results} in page~\pageref{table:framework_training_results}, the descriptor's robustness increases as the descriptor's dimension gets longer, which is in line with the benchmarking results of DON.
 
 \begin{table}[htb]
     \caption{Benchmark of our framework for GPU consumption and $AUC \pm \sigma$ for $PCK@k,  \forall k \in [1, 100]$ metric.}
@@ -64,17 +66,39 @@ We chose 128 keypoints such that it is inline to the notion that DON is benchmar
         \midrule
         Descriptor Size ($D$) & $AUC \pm \sigma$ for $PCK@k$ & VRAM Usage (GB) \\ \hline
         3                     & $0.914 \pm 0.009$            & $4.763$         \\
-        8                     & $4.913 $                     & $4.785 $        \\
-        16                    & $4.913 $                     & $4.832 $        \\
-        32                    & $4.913 $                     & $4.872 $        \\
-        64                    & $4.913 $                     & $4.913 $        \\
-        128                   & $4.913 $                     & $5.409 $        \\
-        256                   & $4.913 $                     & $6.551 $        \\
-        512                   & $4.913 $                     & $7.915 $        \\
+        8                     & $0.928 \pm 0.015$            & $4.785 $        \\
+        16                    & $0.945 \pm 0.010$            & $4.832 $        \\
+        32                    & $0.950 \pm 0.009$            & $4.872 $        \\
+        64                    & $0.953 \pm 0.006$            & $4.913 $        \\
+        128                   & $0.957 \pm 0.012$            & $5.409 $        \\
+        256                   & $0.959 \pm 0.008$            & $6.551 $        \\
+        512                   & $0.962 \pm 0.011$            & $7.915 $        \\
         \bottomrule
     \end{tabular}
 \end{table}
 
+To check the impact of descriptors' robustness compared to the number of keypoints, we trained our framework with 16 keypoints.
+Furthermore, we trained three additional models for each descriptor dimension 64, 128, 256, and 512.
+As per the table~\ref{table:reduced_framework_training_results} compared to the results in Table~\ref{table:framework_training_results},
+the descriptor's robustness decreased when the framework predicted 16 keypoints.
+Moreover, this reflects that number of keypoints in our framework and the number of image-pair correspondences in DON are directly proportional to the robustness of the descriptors.
+
+\begin{table}[htb]
+    \caption{Benchmark of our framework with 16 keypoints for GPU consumption and $AUC \pm \sigma$ for $PCK@k,  \forall k \in [1, 100]$ metric.}
+    \label{table:reduced_framework_training_results}
+    \centering
+    \begin{tabular}{lll}
+        \toprule
+        \multicolumn{3}{c}{Our framework with 16 keypoints}                    \\
+        \midrule
+        Descriptor Size ($D$) & $AUC \pm \sigma$ for $PCK@k$ & VRAM Usage (GB) \\ \hline
+        64                    & $0.948 \pm 0.009$            & $3.799 $        \\
+        128                   & $0.952 \pm 0.010$            & $4.191 $        \\
+        256                   & $0.955 \pm 0.013$            & $5.241 $        \\
+        512                   & $0.957 \pm 0.006$            & $7.341 $        \\
+        \bottomrule
+    \end{tabular}
+\end{table}
 
 \subsection{Robot Grasping Pipeline}
 
@@ -87,13 +111,13 @@ and found it consistent. Furthermore, we did not use the models trained on the s
 
 \begin{figure}[htb]
     \centering
-    \includegraphics[scale=0.15]{images/test_real_caps.png}
+    \includegraphics[scale=0.25]{images/test_real_caps.png}
     \caption{Visual inspection of the dense visual descriptors space of the real caps.}
     \label{fig:check_real_caps}
 \end{figure}
 
 For robot grasping, a descriptor is picked from the descriptor space and queried in real-time such that robot can pinch-grasp the object.
-We could successfully grasp the caps with the robot, as shown in Figure~\ref{fig:straight_grasp}.
+We could successfully grasp the caps with the robot, as shown in Figure~\ref{fig:straight_grasp} in page~\pageref{fig:straight_grasp}.
 
 \begin{figure}[htb]
     \centering
@@ -114,3 +138,4 @@ to calculate a 6D pose in the camera frame. The 6D pose is transformed in the ro
     \caption{Illustration of the aligned robot grasping pipeline.}
     \label{fig:aligned_grasp}
 \end{figure}
+
