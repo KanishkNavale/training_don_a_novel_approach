@@ -1,42 +1,57 @@
-The DON training strategy introduced in~\cite{florence2018dense} relies on the depth information for computing correspondences in an image-pair using
-camera intrinsics and pose information \cite{hartley2003multiple}.
-However, when employing consumer-grade depth cameras for capturing the depth information,
-the depth cameras capture noisy depth in cases of tiny, reflecting objects, which are common in
-industrial environments. In the meantime, \citeauthor{kupcsik2021supervised}~\cite{kupcsik2021supervised} used Laplacian Eigenmaps \cite{belkin2003laplacian}
-to embed a 3D object model into an optimally generated embedding space acting as a target to train DON in a supervised fashion.
-The optimal embeddings bring more domain knowledge by associating the 3D object model with image views.
-\citeauthor{kupcsik2021supervised}~\cite{kupcsik2021supervised} efficiently apply it to smaller, texture-less and
-reflective objects by eliminating the need for depth information. \citeauthor{kupcsik2021supervised}~\cite{kupcsik2021supervised}
-further, compare training strategies for producing 6D grasps for industrial objects and show that a unique supervised training approach
-increases pick-and-place resilience in industry-relevant tasks.
+\Citeauthor{florence2018dense}~\cite{florence2018dense} introduced the Pixelwise Contrastive loss function to train DON,
+which involves sampling pixels in an image-pair and computing the Contrastive loss between the pixels in the first image
+and those in the second image. This optimization procedure aims to improve the descriptor based on a similarity metric.
+However, the Pixelwise Contrastive loss function is computationally expensive and requires numerous matching and non-matching
+image-pair correspondences to work optimally. When optimizing DON using a large number ($N$) of image-pair correspondences,
+the computational resources consumed by the optimization procedure increase significantly due to the exponential growth of
+pixelwise descriptor similarity comparisons ($2^N$).
 
-\citeauthor{florence2020dense}~\cite{florence2020dense} has found that the pixelwise contrastive loss function used to train DON might not perform well if a computed
-correspondence is spatially inconsistent (analogously to the case of noisy depth information). Further highlighting that the precision
-of contrastive-trained models can be sensitive to the
-relative weighting between positive-negative sampled pixels. Instead, the \citeauthor{florence2020dense}~\cite{florence2020dense} introduces a new continuous
-sampling-based loss function called ``Pixelwise Distribution Loss''.
-The pixelwise distribution loss is much more effective as it is a smooth continuous pixel space sampling method compared to the
-discrete pixel space sampling method based on pixelwise contrastive loss.
-The pixelwise distribution loss regresses probability distribution heatmaps to minimize the divergence between the predicted
-heatmap and the ground truth heatmap mitigating errors in correspondences. Furthermore, the pixelwise distribution loss does not
-need non-matching correspondences compared to the
-pixelwise contrastive loss.
-Differently, \citeauthor{hadjivelichkov2021fully}~\cite{hadjivelichkov2021fully} extends the DON training using semantic correspondences between objects in multi-object
-or cluttered scenes overcoming the limitations of \parencites{hartley2003multiple}{belkin2003laplacian}.
-The authors, \citeauthor{hadjivelichkov2021fully}~\cite{hadjivelichkov2021fully} employ offline unsupervised clustering based on confidence in object similarities to generate hard and soft correspondence labels.
-The computed hard and soft labels lead DON in learning class-aware dense object descriptors, introducing hard and soft margin constraints in the proposed pixelwise contrastive loss to train DON.
-Further eliminating the need for camera pose and intrinsic information along with depth information to compute correspondences in an image pair, \citeauthor{nerf-Supervision}~\cite{nerf-Supervision} used
-NeRF~\cite{mildenhall2021nerf} to train DON. The NeRF~\cite{mildenhall2021nerf} recreates a 3D scene from a sequence of images captured by the smartphone camera. The correspondences are extracted from
-the synthetically reconstructed scene to train DON.
-Recently, based on SIMCLR inspired frameworks~\parencites{chen2020simple}{zbontar2021barlow},
-\citeauthor{adrian2022efficient}~\cite{adrian2022efficient} introduced similar architecture and another novel loss function called
-Pixelwise NTXent loss to train DON more robustly.
-The Pixelwise NTXent loss consumes synthetic correspondences independent of depth cameras computed from image augmentations to train DON.
-\citeauthor{adrian2022efficient}'s experiments show that the novel loss function is invariant to the batch size.
-Additionally adopted ``$PCK@k$''
-metric has been adopted as in proceedings \parencites{chai2019multi}{fathy2018hierarchical} to evaluate and benchmark
-DON on cluttered scenes previously not benchmarked.
+In their work, \citeauthor{florence2020dense}~\cite{florence2020dense} discovered that the Pixelwise Contrastive loss
+function used to train DON might yield poor performance if a computed correspondence is spatially inconsistent.
+They also highlighted that the precision of contrastive-trained models could be sensitive to the relative weighting
+between positive and negative sampled pixels. To address these limitations, \citeauthor{florence2020dense}
+proposed a new continuous sampling-based loss function called the Pixelwise Distribution loss. This novel
+loss function leverages smooth and continuous pixel space sampling instead of the discrete pixel space
+sampling method employed by the Pixelwise Contrastive loss. The Pixelwise Distribution loss eliminates
+the need for non-matching correspondences, leading to significant savings in computation resources.
 
-In the proposed framework, we do not use any loss functions in
-\parencites{florence2018dense}{florence2020dense}{kupcsik2021supervised}{adrian2022efficient}{hadjivelichkov2021fully}{nerf-Supervision} to train DON
-however we adopt the network architecture from \cite{florence2018dense} and train on the task of the KeypointNet\parencites{suwajanakorn2018discovery}{zhao2020learning}.
+On a different note, \citeauthor{kupcsik2021supervised}~\cite{kupcsik2021supervised} utilized Laplacian Eigenmaps~\cite{belkin2003laplacian}
+to embed a 3D object model into an optimally generated embedding space, serving as the target for training DON in a supervised fashion.
+However, this methodology does not reduce the computational resource consumption required to train DON. In contrast,
+\citeauthor{hadjivelichkov2021fully}~\cite{hadjivelichkov2021fully} employed offline unsupervised clustering based on confidence
+in object similarities to generate hard and soft correspondence labels. These labels were then used as matching and non-matching
+correspondences to train DON effectively.
+
+Building upon the concept of SIMCLR-inspired frameworks~\parencites{chen2020simple}{zbontar2021barlow},
+\citeauthor{adrian2022efficient}~\cite{adrian2022efficient} introduced a similar architecture and another
+novel loss function called the Pixelwise NTXent Loss. This loss function robustly trains DON by leveraging
+synthetic correspondences computed from image augmentations and non-matching image correspondences.
+Notably, \citeauthor{adrian2022efficient}'s experiments demonstrated that the novel loss function is
+invariant to batch size variations, unlike the Pixelwise Contrastive Loss. Furthermore, it is worth
+noting that most of the discussed optimization methodologies heavily rely on correspondences to train DON effectively.
+
+Moving on to the aspect of image-pair correspondences and dataset engineering,
+the DON training strategy proposed in \cite{florence2018dense, florence2020dense} relies on depth information to
+compute correspondences between image pairs using camera intrinsics and pose information \cite{hartley2003multiple}.
+However, when utilizing consumer-grade depth cameras to capture depth information, the resulting depth data can be noisy,
+particularly when dealing with tiny, reflecting objects common in industrial environments. Noisy depth information hampers
+the computation of consistent spatial correspondences in an image pair. To overcome this challenge,
+\citeauthor{kupcsik2021supervised}~\cite{kupcsik2021supervised} associated 3D models of objects with image views,
+effectively training DON without relying on depth information. Their approach proved efficient for smaller,
+texture-less, and reflective objects. Additionally, \citeauthor{kupcsik2021supervised}
+compared different training strategies for producing 6D grasps on industrial objects and
+demonstrated that a unique supervised training approach enhances pick-and-place resilience in industry-relevant tasks.
+
+In contrast, \citeauthor{nerf-Supervision}\cite{nerf-Supervision} employed NeRF\cite{mildenhall2021nerf},
+a method that reconstructs a 3D scene from a sequence of images captured by a smartphone camera.
+They extracted correspondences from the synthetically reconstructed scene to train DON. Remarkably,
+\citeauthor{adrian2022efficient}'s experiments indicated that DON trained on synthetic data generalizes
+well to real-world objects. Furthermore, they adopted the $PCK@k$ metric, commonly used in
+\parencites{chai2019multi}{fathy2018hierarchical}, to evaluate and benchmark DON's performance
+in cluttered scenes that were previously not extensively studied.
+
+In our work, we do not use any loss functions as proposed in \parencites{florence2018dense}{florence2020dense}{kupcsik2021supervised}{adrian2022efficient}{hadjivelichkov2021fully}{nerf-Supervision}
+to train DON. However, we adopt the network architecture from DON~\cite{florence2018dense}
+as our architecture's backbone and train on the task of the KeypointNet\parencites{suwajanakorn2018discovery}{zhao2020learning}
+with few network modifications. Moreover, we evaluate the descriptor's robustness produced by our framework on the $PCK@k$ metric as in comparision
+to benchmarks in \cite{adrian2022efficient} as it is the only benchmark available for DON. Furthermore, we compare the computational resource consumption.
