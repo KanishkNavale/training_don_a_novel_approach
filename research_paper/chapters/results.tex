@@ -88,13 +88,13 @@ Moreover, this reflects that number of keypoints in our framework and the number
     \centering
     \begin{tabular}{ccc}
         \toprule
-        \multicolumn{3}{c}{Our framework with 16 keypoints}                                            \\
+        \multicolumn{3}{c}{Our framework with 16 keypoints}         \\
         \midrule
-        Descriptor Size ($D$) & $AUC \pm \sigma$ for $PCK@k, \forall k \in [1, 100]$ & VRAM Usage (GB) \\ \hline
-        64                    & $0.948 \pm 0.009$                                    & $3.799 $        \\
-        128                   & $0.952 \pm 0.010$                                    & $4.191 $        \\
-        256                   & $0.955 \pm 0.013$                                    & $5.241 $        \\
-        512                   & $0.957 \pm 0.006$                                    & $7.341 $        \\
+        Descriptor Size ($D$) & Metric            & VRAM Usage (GB) \\ \hline
+        64                    & $0.948 \pm 0.009$ & $3.799 $        \\
+        128                   & $0.952 \pm 0.010$ & $4.191 $        \\
+        256                   & $0.955 \pm 0.013$ & $5.241 $        \\
+        512                   & $0.957 \pm 0.006$ & $7.341 $        \\
         \bottomrule
     \end{tabular}
 \end{table}
@@ -109,7 +109,7 @@ We identify if there are any multi-modal spatial activations in the descriptor s
 
 \begin{figure}[htb]
     \centering
-    \includegraphics[scale=0.3]{images/test_don.png}
+    \includegraphics[scale=0.15]{../images/test_don.png}
     \caption{Depiction of the spatial probability heatmaps of the descriptor in the image space. We set the temperature in the Equation~\ref{eqn:gaussian_kernel} to $1.1$
         and render the spatial probability heatmaps in the interface. The first and second image from the left and the right highlights the semantically equivalent descriptors in the image space.}
     \label{fig:check_don}
@@ -124,7 +124,7 @@ and found it consistent. Furthermore, we did not use the models trained on the s
 
 \begin{figure}[htb]
     \centering
-    \includegraphics[scale=0.2]{images/test_real_caps.png}
+    \includegraphics[scale=0.125]{../images/test_real_caps.png}
     \caption{The image depicts the visual inspection of the dense visual descriptors space of the real caps using our developed interface. We trained our framework on the first two caps from the left, and our framework could generalize the object representations on an unseen cap while training illustrated in the first image from the right.}
     \label{fig:check_real_caps}
 \end{figure}
@@ -139,7 +139,7 @@ Furthermore, we did not evaluate the robot grasping for position and semantic ob
 
 \begin{figure}[htb]
     \centering
-    \includegraphics[scale=0.15]{images/straight_grasps.png}
+    \includegraphics[scale=0.1]{../images/straight_grasps.png}
     \caption{Depiction of the straight robot grasping pipeline.}
     \label{fig:straight_grasp}
 \end{figure}
@@ -152,7 +152,7 @@ to calculate a 6D pose in the camera frame. The 6D pose is transformed in the ro
 
 \begin{figure}[htb]
     \centering
-    \includegraphics[scale=0.235]{images/aligned.png}
+    \includegraphics[scale=0.15]{../images/aligned.png}
     \caption{Illustration of the aligned robot grasping pipeline.}
     \label{fig:aligned_grasp}
 \end{figure}
