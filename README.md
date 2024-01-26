@@ -1,5 +1,8 @@
 # Training Dense Object Nets: A Novel Approach
 
+[![DOI](https://img.shields.io/badge/DOI-10.1109%2FTransAI60598.2023.00010-blue)](https://doi.org/10.1109/TransAI60598.2023.00010)
+
+
 ### Abstract:
 Our work proposes a novel framework that addresses the computational limitations associated with training Dense Object Nets (DON)
 while achieving robust and dense visual object descriptors. DON's descriptors are known for their robustness to
